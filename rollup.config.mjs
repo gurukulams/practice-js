@@ -1,4 +1,5 @@
 import resolve from '@rollup/plugin-node-resolve';
+import commonjs from '@rollup/plugin-commonjs';
 
 export default {
   input: 'src/practice.js',
@@ -6,7 +7,7 @@ export default {
     {
       file: 'dist/practice.bundle.js',
       format: 'umd',
-      name: 'PracticeMaker', // The global variable name for browsers
+      name: 'PracticeMaker',
       sourcemap: true
     },
     {
@@ -16,6 +17,10 @@ export default {
     }
   ],
   plugins: [
-    resolve()
+    resolve({
+      browser: true,
+      preferBuiltins: false
+    }),
+    commonjs()
   ]
 };
