@@ -1,0 +1,1 @@
+{"version":3,"file":"practice.bundle.js","sources":["../src/practice.js"],"sourcesContent":["'use strict';\n\nexport default class PracticeMaker {\n\tconstructor() {\n\t\tconsole.log('Making Practices');\n\t}\n}"],"names":[],"mappings":";;;;;;CAEe,MAAM,aAAa,CAAC;CACnC,CAAC,WAAW,GAAG;CACf,EAAE,OAAO,CAAC,GAAG,CAAC,kBAAkB,CAAC;CACjC,CAAC;CACD;;;;;;;;"}
