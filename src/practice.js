@@ -1,20 +1,30 @@
 'use strict';
 
+// Use the pre-compiled .mjs file for best compatibility with Rollup
+import renderMathInElement from 'katex/dist/contrib/auto-render.mjs';
+
 export default class PracticeMaker {
     constructor(contentRoot) {
         this.contentRoot = contentRoot;
-        this.contentRoot.innerHTML = '<div class="spinner-border" role="status"></div>';
     }
 
     setQuestions(_questions) {
-        // For debugging/printing the JSON structure to the screen
-        this.contentRoot.innerHTML = `
-            <div class="card mt-3">
-                <div class="card-header">Loaded ${_questions.length} Questions</div>
-                <div class="card-body">
-                    <pre><code>${JSON.stringify(_questions, null, 2)}</code></pre>
-                </div>
-            </div>
-        `;
+        // 1. Inject your HTML/JSON data
+        this.contentRoot.innerHTML = `<div class="questions">${JSON.stringify(_questions)}</div>`;
+
+        // 2. Trigger the math rendering
+        this.renderMath();
+    }
+
+    renderMath() {
+        renderMathInElement(this.contentRoot, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '$', right: '$', display: false},
+                {left: '\\(', right: '\\)', display: false},
+                {left: '\\[', right: '\\]', display: true}
+            ],
+            throwOnError: false
+        });
     }
 }
