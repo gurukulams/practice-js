@@ -9,15 +9,20 @@
     "require": "./dist/practice.bundle.js"
   },
   "scripts": {
-    "build": "npx rollup -c",
-    "watch": "browser-sync start --server \"src\" --files \"src/**/*\" --no-notify"
+    "build": "rollup -c",
+    "sync": "copyfiles -u 1 \"public/**/*\" dist",
+    "watch:rollup": "rollup -c -w",
+    "watch:public": "onchange \"public/**/*\" -- npm run sync",
+    "watch:site": "browser-sync start --server \"dist\" --files \"dist/**/*\" --no-notify",
+    "watch": "npm-run-all sync build --parallel watch:*"
   },
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^29.0.2",
     "@rollup/plugin-node-resolve": "^15.0.0",
     "browser-sync": "^3.0.4",
+    "copyfiles": "^2.4.1",
+    "npm-run-all": "^4.1.5",
+    "onchange": "^7.1.0",
     "rollup": "^4.0.0"
-  },
-  "dependencies": {
-    "@rollup/plugin-commonjs": "^29.0.2"
   }
 }
