@@ -1,7 +1,8 @@
-import QuestionPane from "./practice/components/QuestionPane";
+import QuestionPane from "./components/QuestionPane";
 
 export default class PracticeMaker {
-  constructor(_contentRoot) {
+  constructor(_contentRoot, _notiFyFn) {
+    this.notiFyFn = _notiFyFn;
     _contentRoot.innerHTML = `
                 <div id="content" class="d-none" data-type="question">
               <div id="navPane" class="d-flex">
@@ -180,7 +181,7 @@ export default class PracticeMaker {
     let isCorrect = false;
 
     if (answerText === "" && !silentMode) {
-      window.error("Please Select Answer");
+      this.notiFyFn.error("Please Select Answer");
     } else {
       switch (question.type) {
         case "CHOOSE_THE_BEST": {

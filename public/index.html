@@ -19,7 +19,10 @@
     <script type="module">
         
         // Initialize your logic here
-        const practice = new PracticeMaker(document.getElementById("practice-main"));
+        const practice = new PracticeMaker(
+          document.getElementById("practice-main"),
+          { "error":(message) => {console.error(message)}}
+        );
 
         // Fetch the data from your src/data folder
       // Note: The path is relative to this index.html file
