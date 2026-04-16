@@ -20,5 +20,29 @@
         const practice = new PracticeMaker(document.getElementById("practice-main"));
     </script>
 
+    <script type="module">
+      import PracticeMaker from './practice.js';
+      
+      const rootElement = document.getElementById("practice-main");
+      const practice = new PracticeMaker(rootElement);
+  
+      // Fetch the data from your src/data folder
+      // Note: The path is relative to this index.html file
+      fetch('./data/questions.json')
+          .then(response => {
+              if (!response.ok) throw new Error('Network response was not ok');
+              return response.json();
+          })
+          .then(questions => {
+              // Use your class method to handle the data
+              practice.setQuestions(questions);
+              console.log("Questions loaded and passed to PracticeMaker");
+          })
+          .catch(error => {
+              console.error('There was a problem with the fetch operation:', error);
+              rootElement.innerHTML = '<p class="text-danger">Failed to load questions.</p>';
+          });
+  </script>
+
 </body>
 </html>
