@@ -1,7 +1,7 @@
 'use strict';
 
 export default class PracticeMaker {
-	constructor() {
-		console.log('Making Practices');
+	constructor(contentRoot) {
+		contentRoot.innerHTML = 'Making Practices';
 	}
 }

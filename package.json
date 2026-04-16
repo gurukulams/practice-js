@@ -2,17 +2,19 @@
   "name": "practice-js",
   "version": "1.0.0",
   "type": "module",
- "main": "dist/practice.bundle.js",
+  "main": "dist/practice.bundle.js",
   "module": "dist/practice.esm.js",
   "exports": {
     "import": "./dist/practice.esm.js",
     "require": "./dist/practice.bundle.js"
   },
   "scripts": {
-    "build": "npx rollup -c"
+    "build": "npx rollup -c",
+    "watch": "browser-sync start --server 'src' --files 'src/**/*' --no-notify"
   },
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^15.0.0",
+    "browser-sync": "^3.0.4",
     "rollup": "^4.0.0"
   },
   "dependencies": {
