@@ -10,7 +10,7 @@
   },
   "scripts": {
     "build": "npx rollup -c",
-    "watch": "browser-sync start --server 'src' --files 'src/**/*' --no-notify"
+    "watch": "browser-sync start --server \"src\" --files \"src/**/*\" --no-notify"
   },
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^15.0.0",
