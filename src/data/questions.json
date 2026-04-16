@@ -1,0 +1,104 @@
+[
+  {
+    "question": "Which of the following are core OOP principles?\n\n\n<div class=\"math-display\">$\n\\tau = F \\times d \\quad ...(1.2)\n$</div>\n",
+    "choices": [
+      {
+        "label": "Polymorphism",
+        "id": "cse/languages/java//ooad-q1-c0",
+        "questionId": "cse/languages/java//ooad-q1"
+      },
+      {
+        "label": "Abstraction $\\pi(x)$",
+        "id": "cse/languages/java//ooad-q1-c1",
+        "questionId": "cse/languages/java//ooad-q1"
+      },
+      {
+        "label": "Encapsulation",
+        "answer": true,
+        "id": "cse/languages/java//ooad-q1-c2",
+        "questionId": "cse/languages/java//ooad-q1"
+      },
+      {
+        "label": "Inheritance",
+        "answer": true,
+        "id": "cse/languages/java//ooad-q1-c3",
+        "questionId": "cse/languages/java//ooad-q1"
+      }
+    ],
+    "type": "MULTI_CHOICE",
+    "id": "cse/languages/java//ooad-q1"
+  },
+  {
+    "question": "## Which of the following statement about Java interfaces is true?",
+    "explanation": "#### In Java, an interface can extend multiple interfaces. Private methods were added in Java 9, but an interface cannot have constructors.",
+    "choices": [
+      {
+        "label": "An interface can have private methods.",
+        "id": "cse/languages/java//ooad-q0-c0",
+        "questionId": "cse/languages/java//ooad-q0"
+      },
+      {
+        "label": "A class can extend multiple interfaces.",
+        "id": "cse/languages/java//ooad-q0-c1",
+        "questionId": "cse/languages/java//ooad-q0"
+      },
+      {
+        "label": "An interface can have constructors.",
+        "id": "cse/languages/java//ooad-q0-c2",
+        "questionId": "cse/languages/java//ooad-q0"
+      },
+      {
+        "label": "An interface can extend multiple interfaces.",
+        "answer": true,
+        "id": "cse/languages/java//ooad-q0-c3",
+        "questionId": "cse/languages/java//ooad-q0"
+      }
+    ],
+    "type": "CHOOSE_THE_BEST",
+    "id": "cse/languages/java//ooad-q0"
+  },
+  {
+    "question": "## Match the following",
+    "choices": [
+      {
+        "label": "Collection Streams API",
+        "id": "cse/languages/java//design-pattern-q0-c0",
+        "questionId": "cse/languages/java//design-pattern-q0"
+      },
+      {
+        "label": "Buffered Reader",
+        "id": "cse/languages/java//design-pattern-q0-c1",
+        "questionId": "cse/languages/java//design-pattern-q0"
+      },
+      {
+        "label": "Container",
+        "id": "cse/languages/java//design-pattern-q0-c2",
+        "questionId": "cse/languages/java//design-pattern-q0"
+      }
+    ],
+    "type": "MATCH_THE_FOLLOWING",
+    "matches": [
+      {
+        "label": "Builder",
+        "id": "cse/languages/java//design-pattern-q0-m0",
+        "questionId": "cse/languages/java//design-pattern-q0"
+      },
+      {
+        "label": "Decorator",
+        "id": "cse/languages/java//design-pattern-q0-m1",
+        "questionId": "cse/languages/java//design-pattern-q0"
+      },
+      {
+        "label": "Composite",
+        "id": "cse/languages/java//design-pattern-q0-m2",
+        "questionId": "cse/languages/java//design-pattern-q0"
+      },
+      {
+        "label": "Visitor",
+        "id": "cse/languages/java//design-pattern-q0-m3",
+        "questionId": "cse/languages/java//design-pattern-q0"
+      }
+    ],
+    "id": "cse/languages/java//design-pattern-q0"
+  }
+]
