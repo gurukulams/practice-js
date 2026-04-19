@@ -1,0 +1,109 @@
+[
+    {
+      "id": "a8f3d2c1-1b4e-4f9a-9d77-2c6b8e3f1001",
+      "type": "MULTI_CHOICE",
+      "question": "Which of the following are core OOP principles?\n\n\n<div class=\"math-display\">$\n\\tau = F \\times d \\quad ...(1.2)\n$</div>\n",
+      "choices": [
+        {
+          "label": "Polymorphism",
+          "id": "9b1deb4d-3b7d-4f3a-9c62-6b7f6e0c1a01"
+        },
+        {
+          "label": "Abstraction $\\pi(x)$",
+          "id": "2f6a9d2a-8c21-4f89-91bb-1d9d5d2a3f02"
+        },
+        {
+          "label": "Encapsulation",
+          "id": "c1a5e3f4-5c9b-4b7d-8c11-7f8a2d9b4e03"
+        },
+        {
+          "label": "Inheritance",
+          "id": "7d3c2a91-6f44-4a2f-bb2a-3e9d1f8c5a04"
+        }
+      ],
+      "answers": [
+        "c1a5e3f4-5c9b-4b7d-8c11-7f8a2d9b4e03",
+        "7d3c2a91-6f44-4a2f-bb2a-3e9d1f8c5a04"
+      ]
+    },
+    {
+      "id": "f2c7a9d1-5b3e-4e8a-9d66-1c2b7f3a2000",
+      "type": "CHOOSE_THE_BEST",
+      "question": "## Which of the following statement about Java interfaces is true?",
+      "explanation": "#### In Java, an interface can extend multiple interfaces. Private methods were added in Java 9, but an interface cannot have constructors.",
+      "choices": [
+        {
+          "label": "An interface can have private methods.",
+          "id": "e1f7c3b2-2d8a-4c5f-9a11-6b3c7d2e2001"
+        },
+        {
+          "label": "A class can extend multiple interfaces.",
+          "id": "4c9a7e21-9d2f-4e3a-b8c4-1a7d5f2c2002"
+        },
+        {
+          "label": "An interface can have constructors.",
+          "id": "8b2d6f3a-1c4e-4a8d-9e22-5c7f3a1b2003"
+        },
+        {
+          "label": "An interface can extend multiple interfaces.",
+          "id": "d4e1a9c7-6b3f-4d2a-8c55-2f9e6b7a2004"
+        }
+      ],
+      "answer": "d4e1a9c7-6b3f-4d2a-8c55-2f9e6b7a2004"
+    },
+    {
+      "id": "9e8d7c6b-8888-4bbb-9ccc-123456780000",
+      "type": "MATCH_THE_FOLLOWING",
+      "question": "## Match the following",
+      "choices": [
+        {
+          "label": "Collection Streams API",
+          "id": "1a2b3c4d-1111-4aaa-8bbb-123456780001"
+        },
+        {
+          "label": "Buffered Reader",
+          "id": "2b3c4d5e-2222-4bbb-9ccc-123456780002"
+        },
+        {
+          "label": "Container",
+          "id": "3c4d5e6f-3333-4ccc-8ddd-123456780003"
+        }
+      ],
+      "matches": [
+        {
+          "label": "Builder",
+          "id": "4d5e6f70-4444-4ddd-9eee-123456780004"
+        },
+        {
+          "label": "Decorator",
+          "id": "5e6f7081-5555-4eee-8fff-123456780005"
+        },
+        {
+          "label": "Composite",
+          "id": "6f708192-6666-4fff-9aaa-123456780006"
+        },
+        {
+          "label": "Visitor",
+          "id": "708192a3-7777-4aaa-8bbb-123456780007"
+        }
+      ]
+    },
+    {
+      "id": "11111111-aaaa-4bbb-8ccc-123456780010",
+      "type": "TEXT_ANSWER",
+      "question": "What is Capital of India",
+      "answer": "Delhi"
+    },
+    {
+      "id": "22222222-bbbb-4ccc-9ddd-123456780011",
+      "type": "NUMBER_ANSWER",
+      "question": "When did India get independence",
+      "answer": 1947
+    },
+    {
+      "id": "33333333-cccc-4ddd-8eee-123456780012",
+      "type": "NUMBER_ANSWER",
+      "question": "What is the cost of parota",
+      "answer": 10.3
+    }
+  ]
