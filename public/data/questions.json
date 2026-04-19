@@ -100,5 +100,19 @@
       }
     ],
     "id": "cse/languages/java//design-pattern-q0"
+  },
+  {
+    "question": "## What keyword is used to define a class in Java?",
+    "explanation": "#### The `class` keyword is used to define a class. Example: `public class MyClass {}`",
+    "answer": "class",
+    "type": "TEXT_ANSWER",
+    "id": "cse/languages/java//text-q0"
+  },
+  {
+    "question": "## How many bits are in a byte?",
+    "explanation": "#### A byte consists of 8 bits. Fundamental unit in computing.",
+    "answer": 8,
+    "type": "NUMBER_ANSWER",
+    "id": "cse/languages/java//number-q0"
   }
 ]

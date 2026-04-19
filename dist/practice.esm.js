@@ -16870,8 +16870,6 @@ class ChoiceList {
       });
     }
 
-    console.log(answers);
-
     return answers;
   }
 
@@ -36305,17 +36303,6 @@ class QuestionPane {
 
     this.mdEditor = new EasyMDE({element: this.questionPane.querySelector("#qTxt")});
 
-    // eslint-disable-next-line no-undef
-    // this.questionEditor = new EasyMDE({
-    //   autofocus: true,
-    //   element: this.questionPane.querySelector("#qTxt"),
-    // });
-
-    // this.explanationEditor = new EasyMDE({
-    //   autofocus: true,
-    //   element: this.questionPane.querySelector("#eTxt")
-    // });
-
     this.readOnly = true;
 
   }
@@ -36349,9 +36336,15 @@ class QuestionPane {
         const choices = this.mtfChoicesList.answer;
 
         choices.push(matches.slice(0, choices.length));
-        
+
 
         answer = choices.join(",");
+        break;
+      case "TEXT_ANSWER":
+        answer = document.getElementById('textAnswerInput').value.trim();
+        break;
+      case "NUMBER_ANSWER":
+        answer = document.getElementById('numberAnswerInput').value.trim();
         break;
     }
 
@@ -36365,13 +36358,6 @@ class QuestionPane {
 
   setQuestion(_question) {
     this.question = _question;
-    // this.questionEditor.value(
-    //   _question.question ? _question.question : "",
-    // );
-
-    // this.explanationEditor.value(
-    //   _question.explanation ? _question.explanation : "",
-    // );
 
     this.questionContainer.innerHTML = this.mdEditor.markdown(_question.question);
 
@@ -36415,6 +36401,42 @@ class QuestionPane {
           this.mtfChoicesList = new ChoiceList(this.isEditable,"matchesList", _question.choices, true);
           
           break;
+        case "TEXT_ANSWER": {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'mt-3';
+          wrapper.name = _question.id;
+          const label = document.createElement('label');
+          label.className = 'form-label fw-semibold';
+          label.textContent = 'Your answer';
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.className = 'form-control form-control-lg';
+          input.id = 'textAnswerInput';
+          input.placeholder = 'Type your answer...';
+          input.value = '';
+          wrapper.appendChild(label);
+          wrapper.appendChild(input);
+          this.answerContainer.appendChild(wrapper);
+          break;
+        }
+        case "NUMBER_ANSWER": {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'mt-3';
+          wrapper.name = _question.id;
+          const label = document.createElement('label');
+          label.className = 'form-label fw-semibold';
+          label.textContent = 'Your answer';
+          const input = document.createElement('input');
+          input.type = 'number';
+          input.className = 'form-control form-control-lg';
+          input.id = 'numberAnswerInput';
+          input.placeholder = 'Enter a number...';
+          input.value = '';
+          wrapper.appendChild(label);
+          wrapper.appendChild(input);
+          this.answerContainer.appendChild(wrapper);
+          break;
+        }
       }
     } else {
       switch (_question.type) {
@@ -36430,6 +36452,12 @@ class QuestionPane {
           this.mtfChoicesList = new ChoiceList(this.isEditable,"matchesList", _question.choices, true);
           
           break;
+        case "TEXT_ANSWER":
+          answerComponent.querySelector('#textAnswerInput').value = '';
+          break;
+        case "NUMBER_ANSWER":
+          answerComponent.querySelector('#numberAnswerInput').value = '';
+          break;
       }
     }
 
@@ -36441,7 +36469,20 @@ class QuestionPane {
           });
           this.matcheContainer.classList.remove('d-none');
           this.questionContainer.classList.add('d-none');
-      
+
+          renderMathInElement(this.mtfList.element, {
+            delimiters: [
+              { left: '$$', right: '$$', display: true },
+              { left: '$', right: '$', display: false }
+            ]
+          });
+          renderMathInElement(this.mtfChoicesList.element, {
+            delimiters: [
+              { left: '$$', right: '$$', display: true },
+              { left: '$', right: '$', display: false }
+            ]
+          });
+
     }
     
 
@@ -36465,8 +36506,6 @@ class QuestionPane {
 
   set readOnly(flag) {
     this.isEditable = !flag;
-    // this.questionEditor.togglePreview();
-    // this.explanationEditor.togglePreview();
     if (flag) {
       this.questionPane.querySelectorAll(".editor-toolbar")
       .forEach((element) => element.classList.add("d-none"));
@@ -36500,13 +36539,17 @@ class QuestionPane {
 class PracticeMaker {
   constructor(_contentRoot, _notiFyFn) {
     this.notiFyFn = _notiFyFn;
+    this.mode = (_notiFyFn && _notiFyFn.mode) ? _notiFyFn.mode : 'PRACTICE';
+    this.timer = (_notiFyFn && _notiFyFn.timer) ? _notiFyFn.timer : null;
     _contentRoot.innerHTML = `
                 <div id="content" class="d-none" data-type="question">
               <div id="navPane" class="d-flex">
                   <div class="flex-grow-1">
                     <div class="d-flex align-items-center gap-1">
+                      <span id="editModeBadge" class="badge bg-warning text-dark d-none">Edit Mode</span>
                     </div>
                   </div>
+                  <div id="quizTimer" class="d-none fw-bold fs-5 text-center mb-2"></div>
                   <div>
                     <button type="button" class="btn d-none px-2 mx-2 text-white border-dark-subtle" data-bs-toggle="tooltip"
                         data-bs-placement="bottom" title="Explain">
@@ -36528,6 +36571,7 @@ class PracticeMaker {
                       </button> -->
                     <button type="button" class="btn btn-primary" title="Check Question">
                         <i class="bi bi-check"></i> | Verify</button>
+                    <button id="quizSubmitBtn" type="button" class="btn btn-danger d-none">Submit Quiz</button>
                   </div>
               </div>
               <div id="questionPane" class="row h-50">
@@ -36569,9 +36613,9 @@ class PracticeMaker {
     this.questions = this.shuffle(_questions);
     this.originalQuestions = JSON.parse(JSON.stringify(_questions));
     this.currentQuestionIndex = 0;
+    this.userAnswers = {};
 
     if (this.questions.length === 0) {
-      console.log("Empty Questions");
       document.getElementById("notfound").classList.remove("d-none");
       document.getElementById("content").classList.add("d-none");
       const primaryAnchor = document
@@ -36590,12 +36634,29 @@ class PracticeMaker {
       this.setQuestion(index != -1 ? index : 0);
       document.getElementById("notfound").classList.add("d-none");
       document.getElementById("content").classList.remove("d-none");
+
+      if (this.mode === 'QUIZ' && this.timer) {
+        this.timeRemaining = this.timer;
+        this.updateTimerDisplay();
+        this.timerInterval = setInterval(() => {
+          this.timeRemaining--;
+          this.updateTimerDisplay();
+          if (this.timeRemaining <= 0) {
+            clearInterval(this.timerInterval);
+            this.doSubmit();
+          }
+        }, 1000);
+      }
     }
   }
 
   setQuestion(questionIndex) {
 
-    
+    // save current answer before switching
+    if (this.questionPane.getQuestion && this.questionPane.getQuestion()) {
+      const currentQ = this.questionPane.getQuestion();
+      this.userAnswers[currentQ.id] = this.questionPane.getAnswer();
+    }
 
     // is Practice Mode
     if (this.checkBtn && !this.checkBtn.classList.contains("d-none")) {
@@ -36616,6 +36677,12 @@ class PracticeMaker {
     }
 
     this.currentQuestionIndex = questionIndex;
+
+    if (this.mode === 'QUIZ') {
+      const isLast = questionIndex === this.questions.length - 1;
+      document.getElementById('quizSubmitBtn').classList.toggle('d-none', !isLast);
+    }
+
     this.questionPane.setQuestion(this.questions[this.currentQuestionIndex]);
     
   }
@@ -36646,135 +36713,148 @@ class PracticeMaker {
   }
 
   doSubmit() {
-    console.log("Submit Button clicked");
-
-    const statusTxt = document.getElementById("statusTxt");
-
-    statusTxt.innerHTML = "";
-
-    const cIndex = this.currentQuestionIndex;
-
-    let correctAnswers = 0;
-
-    for (let i = 0; i < this.questions.length; i++) {
-      this.setQuestion(i);
-      if (this.doCheck(true)) {
-        correctAnswers++;
-      }
+    // save current question's answer before scoring
+    if (this.questionPane.getQuestion && this.questionPane.getQuestion()) {
+      const currentQ = this.questionPane.getQuestion();
+      this.userAnswers[currentQ.id] = this.questionPane.getAnswer();
     }
 
-    this.setQuestion(cIndex);
+    this.results = [];
 
-    statusTxt.innerHTML =
-      "<span class='text-primary'>Congratulations !</span> You Scored <span class='text-success'>" +
-      correctAnswers +
-      "</span> out of " +
-      this.questions.length;
+    for (let i = 0; i < this.questions.length; i++) {
+      const question = this.questions[i];
+      const answerText = this.userAnswers[question.id] || '';
+      const answered = answerText !== '';
+      const correct = this._checkAnswer(question, answerText);
+      this.results.push({ correct, answered });
+    }
+
+    if (this.mode === 'QUIZ') {
+      clearInterval(this.timerInterval);
+      this.showResultGrid();
+    }
+  }
+
+  _checkAnswer(question, answerText) {
+    if (answerText === '') return false;
+    let isCorrect = false;
+    switch (question.type) {
+      case "CHOOSE_THE_BEST": {
+        const correctChoice = question.choices.find(
+          (choice) => choice.answer === true
+        );
+        isCorrect = correctChoice && correctChoice.id === answerText;
+        break;
+      }
+      case "MULTI_CHOICE": {
+        const correctChoiceIds = question.choices
+          .filter((choice) => choice.answer === true)
+          .map((choice) => choice.id)
+          .sort();
+        const selectedChoiceIds = answerText
+          .split(",")
+          .map((id) => id.trim())
+          .sort();
+        isCorrect = selectedChoiceIds.length === correctChoiceIds.length &&
+          selectedChoiceIds.every(id => correctChoiceIds.includes(id));
+        break;
+      }
+      case "MATCH_THE_FOLLOWING": {
+        if (this.originalQuestions) {
+          const originalQuestion = this.originalQuestions.find(
+            (q) => q.id === question.id
+          );
+          if (originalQuestion) {
+            const ids = answerText.split(",");
+            const n = originalQuestion.choices.length;
+            const userChoiceIds = ids.slice(0, n);
+            const userMatchIds = ids.slice(n, n * 2);
+            const correctPairs = {};
+            originalQuestion.choices.forEach((choice, i) => {
+              correctPairs[choice.id] = originalQuestion.matches[i].id;
+            });
+            isCorrect = userChoiceIds.length === n &&
+              userMatchIds.length === n &&
+              userChoiceIds.every((cId, i) => correctPairs[cId] === userMatchIds[i]);
+          }
+        }
+        break;
+      }
+      case "TEXT_ANSWER": {
+        isCorrect = answerText.toLowerCase() === question.answer.toLowerCase();
+        break;
+      }
+      case "NUMBER_ANSWER": {
+        const parsed = parseFloat(answerText);
+        isCorrect = !isNaN(parsed) && Math.abs(parsed - question.answer) < 0.0001;
+        break;
+      }
+    }
+    return isCorrect;
   }
 
   doCheck(silentMode) {
     const question = this.questionPane.getQuestion();
     const answerText = this.questionPane.getAnswer();
-    let isCorrect = false;
 
     if (answerText === "" && !silentMode) {
       this.notiFyFn.error("Please Select Answer");
-    } else {
-      switch (question.type) {
-        case "CHOOSE_THE_BEST": {
-          const correctChoice = question.choices.find(
-            (choice) => choice.answer === true
-          );
-          isCorrect = correctChoice && correctChoice.id === answerText;
-          break;
-        }
-
-        case "MULTI_CHOICE": {
-          const correctChoiceIds = question.choices
-            .filter((choice) => choice.answer === true)
-            .map((choice) => choice.id)
-            .sort();
-
-          const selectedChoiceIds = answerText
-            .split(",")
-            .map((id) => id.trim())
-            .sort();
-
-
-          const choiceListElement = this.questionPane.mcqList.element;
-          const listItems = choiceListElement.querySelectorAll("li");
-           listItems.forEach((liEl) => {
-            const input = liEl.querySelector("input");
-            const choiceId = input.value;
-
-            if (input.checked) {
-              if (correctChoiceIds.includes(choiceId)) {
-                liEl.classList.add("bg-success", "text-white");
-                liEl.classList.remove("bg-danger", "text-black");
-              } else {
-                liEl.classList.add("bg-danger", "text-white");
-                liEl.classList.remove("bg-success", "text-black");
-              }
-            } else {
-              liEl.classList.remove("bg-success", "bg-danger", "text-white");
-              liEl.classList.add("text-black");
-            }
-          });
-
-          isCorrect = selectedChoiceIds.length === correctChoiceIds.length &&
-            selectedChoiceIds.every(id => correctChoiceIds.includes(id));
-
-          const originalVerify = this.questionPane.verify;
-            this.questionPane.verify = () => {}; 
-          setTimeout(() => {
-            this.questionPane.verify = originalVerify;
-          }, 100);
-
-          break;
-        }
-        case "MATCH_THE_FOLLOWING": {
-          if (this.originalQuestions) {
-            const originalQuestion = this.originalQuestions.find(
-              (q) => q.id === question.id
-            );
-
-            if (originalQuestion) {
-              const fullList = [
-                ...originalQuestion.choices,
-                ...originalQuestion.matches.slice(
-                  0,
-                  originalQuestion.choices.length
-                ),
-              ];
-              const correctAnswer = fullList.map((item) => item.id).join(",");
-              isCorrect = correctAnswer === answerText;
-            }
-          }
-          break;
-        }
-      }
-
-      if (isCorrect) {
-        this.questionPane.verify(true);
-
-        if (this.explainToggleBtn) {
-          this.explainToggleBtn.firstElementChild.innerHTML = "Correct Answer |";
-          this.explainToggleBtn.classList.remove("btn-danger");
-          this.explainToggleBtn.classList.add("btn-success");
-          this.explainToggleBtn.classList.remove("d-none");
-        }
-      } else {
-        this.questionPane.verify(false);
-
-        if (this.explainToggleBtn) {
-          this.explainToggleBtn.firstElementChild.innerHTML = "Wrong Answer |";
-          this.explainToggleBtn.classList.remove("btn-success");
-          this.explainToggleBtn.classList.add("btn-danger");
-          this.explainToggleBtn.classList.remove("d-none");
-        }
-      }
-      return isCorrect;
+      return false;
     }
+
+    // MULTI_CHOICE needs live DOM highlighting — handle that here before delegating
+    if (question.type === "MULTI_CHOICE") {
+      const correctChoiceIds = question.choices
+        .filter((choice) => choice.answer === true)
+        .map((choice) => choice.id)
+        .sort();
+
+      const choiceListElement = this.questionPane.mcqList.element;
+      const listItems = choiceListElement.querySelectorAll("li");
+      listItems.forEach((liEl) => {
+        const input = liEl.querySelector("input");
+        const choiceId = input.value;
+        if (input.checked) {
+          if (correctChoiceIds.includes(choiceId)) {
+            liEl.classList.add("bg-success", "text-white");
+            liEl.classList.remove("bg-danger", "text-black");
+          } else {
+            liEl.classList.add("bg-danger", "text-white");
+            liEl.classList.remove("bg-success", "text-black");
+          }
+        } else {
+          liEl.classList.remove("bg-success", "bg-danger", "text-white");
+          liEl.classList.add("text-black");
+        }
+      });
+
+      const originalVerify = this.questionPane.verify;
+      this.questionPane.verify = () => {};
+      setTimeout(() => {
+        this.questionPane.verify = originalVerify;
+      }, 100);
+    }
+
+    const isCorrect = this._checkAnswer(question, answerText);
+
+    if (isCorrect) {
+      this.questionPane.verify(true);
+      if (this.explainToggleBtn) {
+        this.explainToggleBtn.firstElementChild.innerHTML = "Correct Answer |";
+        this.explainToggleBtn.classList.remove("btn-danger");
+        this.explainToggleBtn.classList.add("btn-success");
+        this.explainToggleBtn.classList.remove("d-none");
+      }
+    } else {
+      this.questionPane.verify(false);
+      if (this.explainToggleBtn) {
+        this.explainToggleBtn.firstElementChild.innerHTML = "Wrong Answer |";
+        this.explainToggleBtn.classList.remove("btn-success");
+        this.explainToggleBtn.classList.add("btn-danger");
+        this.explainToggleBtn.classList.remove("d-none");
+      }
+    }
+    return isCorrect;
   }
 
   addActions() {
@@ -36810,6 +36890,59 @@ class PracticeMaker {
         element.addEventListener("click", () => this.doPrevious());
       }
     });
+
+    if (this.mode === 'QUIZ') {
+      this.checkBtn.classList.add('d-none');
+      if (this.timer) {
+        document.getElementById('quizTimer').classList.remove('d-none');
+      }
+      document.getElementById('quizSubmitBtn').addEventListener('click', () => this.doSubmit());
+    }
+  }
+
+  destroy() {
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
+    }
+  }
+
+  setEditable(bool) {
+    this.questionPane.readOnly = !bool;
+    const badge = document.getElementById('editModeBadge');
+    if (bool) {
+      badge.classList.remove('d-none');
+    } else {
+      badge.classList.add('d-none');
+    }
+  }
+
+  updateTimerDisplay() {
+    const mins = Math.floor(this.timeRemaining / 60).toString().padStart(2, '0');
+    const secs = (this.timeRemaining % 60).toString().padStart(2, '0');
+    document.getElementById('quizTimer').textContent = `⏱ ${mins}:${secs}`;
+  }
+
+  showResultGrid() {
+    const root = document.getElementById('content').parentElement;
+    const resultsDiv = document.createElement('div');
+    resultsDiv.id = 'quizResults';
+
+    const correct = this.results.filter(r => r.correct).length;
+    const total = this.results.length;
+
+    const itemsHtml = this.results.map((r, i) => {
+      const colorClass = r.correct ? 'bg-success text-white' : (r.answered ? 'bg-danger text-white' : 'bg-secondary text-white');
+      return `<li class="page-item m-1"><span class="page-link ${colorClass}">${i + 1}</span></li>`;
+    }).join('');
+
+    resultsDiv.innerHTML = `
+      <h4 class="text-center mb-3">Quiz Complete — Score: ${correct} / ${total}</h4>
+      <nav><ul class="pagination flex-wrap justify-content-center">${itemsHtml}</ul></nav>
+    `;
+
+    document.getElementById('content').classList.add('d-none');
+    root.appendChild(resultsDiv);
   }
 }
 
