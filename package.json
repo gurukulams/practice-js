@@ -9,12 +9,13 @@
     "require": "./dist/practice.bundle.js"
   },
   "scripts": {
-    "build": "rollup -c",
+    "build:rollup": "rollup -c",
     "sync": "copyfiles -u 1 \"public/**/*\" dist",
+    "build": "npm-run-all sync build:rollup",
     "watch:rollup": "rollup -c -w",
     "watch:public": "onchange \"public/**/*\" -- npm run sync",
     "watch:site": "browser-sync start --server \"dist\" --files \"dist/**/*\" --no-notify",
-    "watch": "npm-run-all sync build --parallel watch:*"
+    "watch": "npm-run-all sync build:rollup --parallel watch:*"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
