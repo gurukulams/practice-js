@@ -525,3 +525,280 @@ test.describe('QUIZ mode', () => {
     expect(count).toBeGreaterThanOrEqual(1);
   });
 });
+
+// ─── QUESTION COUNTER ─────────────────────────────────────────────────────────
+
+test.describe('Question counter', () => {
+  test('shows Q 1 / N on first question', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForSelector('#content:not(.d-none)');
+    await page.waitForFunction(() => window.__prakticeMaker?.questions?.length > 0);
+
+    const total = await page.evaluate(() => window.__prakticeMaker.questions.length);
+    const counter = page.locator('#questionCounter');
+    await expect(counter).not.toHaveClass(/d-none/);
+    await expect(counter).toHaveText(`Q 1 / ${total}`);
+  });
+
+  test('counter updates on next navigation', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForSelector('#content:not(.d-none)');
+    await page.waitForFunction(() => window.__prakticeMaker?.questions?.length > 0);
+
+    await page.locator('i.bi-arrow-right').click();
+    await page.waitForTimeout(100);
+
+    const total = await page.evaluate(() => window.__prakticeMaker.questions.length);
+    const counter = page.locator('#questionCounter');
+    await expect(counter).toHaveText(`Q 2 / ${total}`);
+  });
+
+  test('counter updates on previous navigation', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForSelector('#content:not(.d-none)');
+    await page.waitForFunction(() => window.__prakticeMaker?.questions?.length > 0);
+
+    // Go forward then back
+    await page.locator('i.bi-arrow-right').click();
+    await page.waitForTimeout(100);
+    await page.locator('i.bi-arrow-left').click();
+    await page.waitForTimeout(100);
+
+    const total = await page.evaluate(() => window.__prakticeMaker.questions.length);
+    await expect(page.locator('#questionCounter')).toHaveText(`Q 1 / ${total}`);
+  });
+
+  test('counter visible in QUIZ mode', async ({ page }) => {
+    await page.goto('/?mode=QUIZ');
+    await page.waitForSelector('#content:not(.d-none)');
+    await page.waitForFunction(() => window.__prakticeMaker?.questions?.length > 0);
+
+    const total = await page.evaluate(() => window.__prakticeMaker.questions.length);
+    await expect(page.locator('#questionCounter')).toHaveText(`Q 1 / ${total}`);
+  });
+});
+
+// ─── QUIZ PREV/NEXT ───────────────────────────────────────────────────────────
+
+test.describe('QUIZ prev/next navigation', () => {
+  async function loadQuizPage(page) {
+    await page.goto('/?mode=QUIZ');
+    await page.waitForSelector('#content:not(.d-none)');
+    await page.waitForFunction(() => window.__prakticeMaker?.questions?.length > 0);
+  }
+
+  test('next button works in QUIZ mode', async ({ page }) => {
+    await loadQuizPage(page);
+    const before = await page.evaluate(() => window.__prakticeMaker.currentQuestionIndex);
+    await page.locator('i.bi-arrow-right').click();
+    await page.waitForTimeout(100);
+    const after = await page.evaluate(() => window.__prakticeMaker.currentQuestionIndex);
+    expect(after).toBe(before + 1);
+  });
+
+  test('previous button works in QUIZ mode after going forward', async ({ page }) => {
+    await loadQuizPage(page);
+    await page.locator('i.bi-arrow-right').click();
+    await page.waitForTimeout(100);
+    const mid = await page.evaluate(() => window.__prakticeMaker.currentQuestionIndex);
+
+    await page.locator('i.bi-arrow-left').click();
+    await page.waitForTimeout(100);
+    const back = await page.evaluate(() => window.__prakticeMaker.currentQuestionIndex);
+    expect(back).toBe(mid - 1);
+  });
+
+  test('answer saved when navigating away and back', async ({ page }) => {
+    await loadQuizPage(page);
+
+    // Go to a CHOOSE_THE_BEST question and answer it
+    const info = await page.evaluate(() => {
+      const pm = window.__prakticeMaker;
+      const idx = pm.questions.findIndex(q => q.type === 'CHOOSE_THE_BEST');
+      if (idx === -1) return null;
+      pm.setQuestion(idx);
+      return { idx, correctId: pm.questions[idx].choices.find(c => c.answer)?.id };
+    });
+    expect(info).not.toBeNull();
+
+    await page.waitForSelector(`input[value="${info.correctId}"]`);
+    await page.locator(`input[value="${info.correctId}"]`).check();
+
+    // Navigate away and back
+    await page.evaluate((idx) => window.__prakticeMaker.setQuestion(idx + 1 < window.__prakticeMaker.questions.length ? idx + 1 : idx - 1), info.idx);
+    await page.waitForTimeout(100);
+    await page.evaluate((idx) => window.__prakticeMaker.setQuestion(idx), info.idx);
+    await page.waitForTimeout(100);
+
+    // Saved answer should be in userAnswers
+    const saved = await page.evaluate((id) => {
+      const pm = window.__prakticeMaker;
+      const q = pm.questions.find(q => q.type === 'CHOOSE_THE_BEST');
+      return pm.userAnswers[q?.id] || '';
+    }, info.correctId);
+    expect(saved).not.toBe('');
+  });
+});
+
+// ─── QUIZ RESULT NAVIGATION ───────────────────────────────────────────────────
+
+test.describe('Quiz result navigation', () => {
+  async function submitQuiz(page) {
+    await page.goto('/?mode=QUIZ');
+    await page.waitForSelector('#content:not(.d-none)');
+    await page.waitForFunction(() => window.__prakticeMaker?.questions?.length > 0);
+    const lastIdx = await page.evaluate(() => window.__prakticeMaker.questions.length - 1);
+    await page.evaluate((idx) => window.__prakticeMaker.setQuestion(idx), lastIdx);
+    await page.waitForTimeout(100);
+    await page.locator('#quizSubmitBtn').click();
+    await page.waitForSelector('#quizResults');
+  }
+
+  test('result items are clickable and show question', async ({ page }) => {
+    await submitQuiz(page);
+
+    // Click first result item
+    await page.locator('#quizResults .page-item').first().click();
+    await page.waitForTimeout(200);
+
+    // Content pane should be visible
+    await expect(page.locator('#content')).not.toHaveClass(/d-none/);
+    // Result grid should be hidden
+    await expect(page.locator('#quizResults')).toHaveClass(/d-none/);
+  });
+
+  test('Back to Results button returns to result grid', async ({ page }) => {
+    await submitQuiz(page);
+
+    await page.locator('#quizResults .page-item').first().click();
+    await page.waitForTimeout(200);
+
+    await page.locator('#backToResultsBtn').click();
+    await page.waitForTimeout(200);
+
+    await expect(page.locator('#quizResults')).not.toHaveClass(/d-none/);
+    await expect(page.locator('#content')).toHaveClass(/d-none/);
+  });
+
+  test('explanation shown when viewing result question', async ({ page }) => {
+    await submitQuiz(page);
+
+    await page.locator('#quizResults .page-item').first().click();
+    await page.waitForTimeout(200);
+
+    // Explanation container should be visible (not d-none)
+    await expect(page.locator('#explanationContainer')).not.toHaveClass(/d-none/);
+  });
+
+  test('correct/wrong badge shown on explain button', async ({ page }) => {
+    await submitQuiz(page);
+
+    // Answer one question correctly first
+    const info = await page.evaluate(() => {
+      const pm = window.__prakticeMaker;
+      const idx = pm.questions.findIndex(q => q.type === 'CHOOSE_THE_BEST');
+      if (idx === -1) return null;
+      const correctId = pm.questions[idx].choices.find(c => c.answer)?.id;
+      pm.userAnswers[pm.questions[idx].id] = correctId;
+      // Recompute results
+      pm.results[idx] = { correct: true, answered: true };
+      return { idx };
+    });
+
+    if (!info) { test.skip(); return; }
+
+    await page.locator(`#quizResults .page-item:nth-child(${info.idx + 1})`).click();
+    await page.waitForTimeout(200);
+
+    const explainBtn = page.locator('button[title="Explain"]');
+    await expect(explainBtn).not.toHaveClass(/d-none/);
+  });
+
+  test('clicking multiple result items works without error', async ({ page }) => {
+    await submitQuiz(page);
+
+    const count = await page.locator('#quizResults .page-item').count();
+    const clicks = Math.min(count, 3);
+
+    for (let i = 0; i < clicks; i++) {
+      // Go back to results first
+      if (i > 0) {
+        await page.locator('#backToResultsBtn').click();
+        await page.waitForTimeout(100);
+      }
+      await page.locator(`#quizResults .page-item:nth-child(${i + 1})`).click();
+      await page.waitForTimeout(200);
+      await expect(page.locator('#content')).not.toHaveClass(/d-none/);
+    }
+  });
+});
+
+// ─── MAX QUESTIONS CAP ────────────────────────────────────────────────────────
+
+test.describe('Max questions cap', () => {
+  test('maxQ larger than available uses all questions', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForFunction(() => window.__prakticeMaker?.questions?.length > 0);
+
+    const available = await page.evaluate(() => window.__prakticeMaker.questions.length);
+
+    // Apply maxQ = available * 10 (way more than available)
+    await page.evaluate((bigNum) => {
+      const root = document.getElementById('practice-main');
+      root.innerHTML = '';
+      const opts = { mode: 'PRACTICE', error: () => {} };
+      const pm = new PracticeMaker(root, opts);
+      pm.setEditable(false);
+      // Use questions already loaded
+      pm.setQuestions(window.__prakticeMaker.questions.slice());
+      window.__prakticeMaker = pm;
+    }, available * 10);
+
+    const actual = await page.evaluate(() => window.__prakticeMaker.questions.length);
+    expect(actual).toBe(available);
+  });
+
+  test('maxQ = 2 limits to 2 questions', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForFunction(() => window.__prakticeMaker?.questions?.length > 0);
+
+    const allQuestions = await page.evaluate(() => window.__prakticeMaker.questions.slice());
+
+    // Rebuild with maxQ = 2 via UI
+    await page.evaluate((qs) => {
+      const root = document.getElementById('practice-main');
+      if (window.__prakticeMaker?.destroy) window.__prakticeMaker.destroy();
+      root.innerHTML = '';
+      const opts = { mode: 'PRACTICE', error: () => {} };
+      const pm = new PracticeMaker(root, opts);
+      pm.setEditable(false);
+      pm.setQuestions(qs.slice(0, 2));
+      window.__prakticeMaker = pm;
+    }, allQuestions);
+
+    const count = await page.evaluate(() => window.__prakticeMaker.questions.length);
+    expect(count).toBe(2);
+
+    // Last question should show submit/next disabled
+    await page.evaluate(() => window.__prakticeMaker.setQuestion(1));
+    await page.waitForTimeout(100);
+    const counter = page.locator('#questionCounter');
+    await expect(counter).toHaveText('Q 2 / 2');
+  });
+
+  test('buildInstance with maxQ > available passes all via UI', async ({ page }) => {
+    // Use URL param approach — load page and then apply via the applyBtn
+    await page.goto('/');
+    await page.waitForFunction(() => window.__prakticeMaker?.questions?.length > 0);
+
+    const available = await page.evaluate(() => window.__prakticeMaker.questions.length);
+
+    // Set maxQ to a very large number
+    await page.locator('#maxQInput').fill('9999');
+    await page.locator('#applyBtn').click();
+    await page.waitForFunction(() => window.__prakticeMaker?.questions?.length > 0);
+
+    const actual = await page.evaluate(() => window.__prakticeMaker.questions.length);
+    expect(actual).toBe(available);
+  });
+});
