@@ -16,17 +16,6 @@ export default class QuestionPane {
 
     this.mdEditor = new EasyMDE({element: this.questionPane.querySelector("#qTxt")});
 
-    // eslint-disable-next-line no-undef
-    // this.questionEditor = new EasyMDE({
-    //   autofocus: true,
-    //   element: this.questionPane.querySelector("#qTxt"),
-    // });
-
-    // this.explanationEditor = new EasyMDE({
-    //   autofocus: true,
-    //   element: this.questionPane.querySelector("#eTxt")
-    // });
-
     this.readOnly = true;
 
   }
@@ -41,6 +30,12 @@ export default class QuestionPane {
         break;
       case "MATCH_THE_FOLLOWING":
         this.mtfList.verify(success)
+        break;
+      case "TEXT_ANSWER":
+        // no visual highlight needed for text input
+        break;
+      case "NUMBER_ANSWER":
+        // no visual list to highlight; result shown via explainToggleBtn
         break;
     }
   }
@@ -60,9 +55,15 @@ export default class QuestionPane {
         const choices = this.mtfChoicesList.answer;
 
         choices.push(matches.slice(0, choices.length));
-        
+
 
         answer = choices.join(",");
+        break;
+      case "TEXT_ANSWER":
+        answer = document.getElementById('textAnswerInput').value.trim();
+        break;
+      case "NUMBER_ANSWER":
+        answer = document.getElementById('numberAnswerInput').value.trim();
         break;
     }
 
@@ -76,13 +77,6 @@ export default class QuestionPane {
 
   setQuestion(_question) {
     this.question = _question;
-    // this.questionEditor.value(
-    //   _question.question ? _question.question : "",
-    // );
-
-    // this.explanationEditor.value(
-    //   _question.explanation ? _question.explanation : "",
-    // );
 
     this.questionContainer.innerHTML = this.mdEditor.markdown(_question.question);
 
@@ -126,6 +120,42 @@ export default class QuestionPane {
           this.mtfChoicesList = new ChoiceList(this.isEditable,"matchesList", _question.choices, true);
           
           break;
+        case "TEXT_ANSWER": {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'mt-3';
+          wrapper.name = _question.id;
+          const label = document.createElement('label');
+          label.className = 'form-label fw-semibold';
+          label.textContent = 'Your answer';
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.className = 'form-control form-control-lg';
+          input.id = 'textAnswerInput';
+          input.placeholder = 'Type your answer...';
+          input.value = '';
+          wrapper.appendChild(label);
+          wrapper.appendChild(input);
+          this.answerContainer.appendChild(wrapper);
+          break;
+        }
+        case "NUMBER_ANSWER": {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'mt-3';
+          wrapper.name = _question.id;
+          const label = document.createElement('label');
+          label.className = 'form-label fw-semibold';
+          label.textContent = 'Your answer';
+          const input = document.createElement('input');
+          input.type = 'number';
+          input.className = 'form-control form-control-lg';
+          input.id = 'numberAnswerInput';
+          input.placeholder = 'Enter a number...';
+          input.value = '';
+          wrapper.appendChild(label);
+          wrapper.appendChild(input);
+          this.answerContainer.appendChild(wrapper);
+          break;
+        }
       }
     } else {
       switch (_question.type) {
@@ -141,6 +171,12 @@ export default class QuestionPane {
           this.mtfChoicesList = new ChoiceList(this.isEditable,"matchesList", _question.choices, true);
           
           break;
+        case "TEXT_ANSWER":
+          answerComponent.querySelector('#textAnswerInput').value = '';
+          break;
+        case "NUMBER_ANSWER":
+          answerComponent.querySelector('#numberAnswerInput').value = '';
+          break;
       }
     }
 
@@ -152,7 +188,20 @@ export default class QuestionPane {
           })
           this.matcheContainer.classList.remove('d-none');
           this.questionContainer.classList.add('d-none');
-      
+
+          renderMathInElement(this.mtfList.element, {
+            delimiters: [
+              { left: '$$', right: '$$', display: true },
+              { left: '$', right: '$', display: false }
+            ]
+          });
+          renderMathInElement(this.mtfChoicesList.element, {
+            delimiters: [
+              { left: '$$', right: '$$', display: true },
+              { left: '$', right: '$', display: false }
+            ]
+          });
+
     }
     
 
@@ -176,8 +225,6 @@ export default class QuestionPane {
 
   set readOnly(flag) {
     this.isEditable = !flag;
-    // this.questionEditor.togglePreview();
-    // this.explanationEditor.togglePreview();
     if (flag) {
       this.questionPane.querySelectorAll(".editor-toolbar")
       .forEach((element) => element.classList.add("d-none"));
