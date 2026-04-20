@@ -16876,6 +16876,8 @@
         });
       }
 
+      console.log(answers);
+
       return answers;
     }
 

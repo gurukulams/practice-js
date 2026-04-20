@@ -16870,6 +16870,8 @@ class ChoiceList {
       });
     }
 
+    console.log(answers);
+
     return answers;
   }
 
