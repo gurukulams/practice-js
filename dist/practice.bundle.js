@@ -16876,6 +16876,8 @@
         });
       }
 
+      console.log(answers);
+
       return answers;
     }
 
@@ -36556,6 +36558,7 @@
                     </div>
                   </div>
                   <div id="quizTimer" class="d-none fw-bold fs-5 text-center mb-2"></div>
+                  <div id="questionCounter" class="d-none fw-semibold text-muted align-self-center me-2"></div>
                   <div>
                     <button type="button" class="btn d-none px-2 mx-2 text-white border-dark-subtle" data-bs-toggle="tooltip"
                         data-bs-placement="bottom" title="Explain">
@@ -36683,6 +36686,12 @@
       }
 
       this.currentQuestionIndex = questionIndex;
+
+      const counterEl = document.getElementById('questionCounter');
+      if (counterEl) {
+        counterEl.textContent = `Q ${questionIndex + 1} / ${this.questions.length}`;
+        counterEl.classList.remove('d-none');
+      }
 
       if (this.mode === 'QUIZ') {
         const isLast = questionIndex === this.questions.length - 1;
@@ -36930,25 +36939,109 @@
     }
 
     showResultGrid() {
-      const root = document.getElementById('content').parentElement;
+      const contentEl = document.getElementById('content');
+      const root = contentEl.parentElement;
+
+      // Remove any previous result panel
+      const existing = document.getElementById('quizResults');
+      if (existing) existing.remove();
+
       const resultsDiv = document.createElement('div');
       resultsDiv.id = 'quizResults';
 
       const correct = this.results.filter(r => r.correct).length;
       const total = this.results.length;
 
-      const itemsHtml = this.results.map((r, i) => {
-        const colorClass = r.correct ? 'bg-success text-white' : (r.answered ? 'bg-danger text-white' : 'bg-secondary text-white');
-        return `<li class="page-item m-1"><span class="page-link ${colorClass}">${i + 1}</span></li>`;
-      }).join('');
+      const heading = document.createElement('h4');
+      heading.className = 'text-center mb-3';
+      heading.textContent = `Quiz Complete — Score: ${correct} / ${total}`;
+      const nav = document.createElement('nav');
+      const ul = document.createElement('ul');
+      ul.className = 'pagination flex-wrap justify-content-center';
+      ul.id = 'resultGrid';
+      nav.appendChild(ul);
+      resultsDiv.appendChild(heading);
+      resultsDiv.appendChild(nav);
 
-      resultsDiv.innerHTML = `
-      <h4 class="text-center mb-3">Quiz Complete — Score: ${correct} / ${total}</h4>
-      <nav><ul class="pagination flex-wrap justify-content-center">${itemsHtml}</ul></nav>
-    `;
-
-      document.getElementById('content').classList.add('d-none');
+      contentEl.classList.add('d-none');
       root.appendChild(resultsDiv);
+
+      this.results.forEach((r, i) => {
+        const colorClass = r.correct ? 'bg-success text-white' : (r.answered ? 'bg-danger text-white' : 'bg-secondary text-white');
+        const li = document.createElement('li');
+        li.className = 'page-item m-1';
+        li.style.cursor = 'pointer';
+        const span = document.createElement('span');
+        span.className = `page-link ${colorClass}`;
+        span.textContent = i + 1;
+        li.appendChild(span);
+        li.addEventListener('click', () => this._showResultQuestion(i));
+        ul.appendChild(li);
+      });
+    }
+
+    _showResultQuestion(index) {
+      const resultsDiv = document.getElementById('quizResults');
+      const contentEl = document.getElementById('content');
+
+      if (!document.getElementById('backToResultsBtn')) {
+        const backBtn = document.createElement('button');
+        backBtn.id = 'backToResultsBtn';
+        backBtn.className = 'btn btn-outline-secondary btn-sm mb-2';
+        backBtn.textContent = '← Back to Results';
+        backBtn.addEventListener('click', () => {
+          contentEl.classList.add('d-none');
+          backBtn.remove();
+          resultsDiv.classList.remove('d-none');
+        });
+        contentEl.parentElement.insertBefore(backBtn, contentEl);
+      }
+
+      resultsDiv.classList.add('d-none');
+      contentEl.classList.remove('d-none');
+
+      this.setQuestion(index);
+
+      const question = this.questions[index];
+      const savedAnswer = this.userAnswers[question.id] || '';
+      if (savedAnswer) {
+        this._restoreAnswer(question, savedAnswer);
+      }
+
+      this.doExplain(true);
+
+      const r = this.results[index];
+      if (this.explainToggleBtn) {
+        this.explainToggleBtn.firstElementChild.textContent = r.correct ? 'Correct Answer |' : 'Wrong Answer |';
+        this.explainToggleBtn.classList.remove('btn-success', 'btn-danger', 'd-none');
+        this.explainToggleBtn.classList.add(r.correct ? 'btn-success' : 'btn-danger');
+      }
+    }
+
+    _restoreAnswer(question, answerText) {
+      switch (question.type) {
+        case 'CHOOSE_THE_BEST': {
+          const inputs = this.questionPane.answerContainer.querySelectorAll('input[type="radio"]');
+          inputs.forEach(input => { input.checked = input.value === answerText; });
+          break;
+        }
+        case 'MULTI_CHOICE': {
+          const selected = answerText.split(',').map(s => s.trim());
+          const inputs = this.questionPane.answerContainer.querySelectorAll('input[type="checkbox"]');
+          inputs.forEach(input => { input.checked = selected.includes(input.value); });
+          break;
+        }
+        case 'TEXT_ANSWER': {
+          const inp = document.getElementById('textAnswerInput');
+          if (inp) inp.value = answerText;
+          break;
+        }
+        case 'NUMBER_ANSWER': {
+          const inp = document.getElementById('numberAnswerInput');
+          if (inp) inp.value = answerText;
+          break;
+        }
+      }
     }
   }
 
