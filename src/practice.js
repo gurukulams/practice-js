@@ -1,19 +1,22 @@
 import QuestionPane from "./components/QuestionPane";
+import { t } from "./i18n";
 
 export default class PracticeMaker {
   constructor(_contentRoot, _notiFyFn) {
     this.notiFyFn = _notiFyFn;
     this.mode = (_notiFyFn && _notiFyFn.mode) ? _notiFyFn.mode : 'PRACTICE';
     this.timer = (_notiFyFn && _notiFyFn.timer) ? _notiFyFn.timer : null;
+    this.locale = (_notiFyFn && _notiFyFn.locale) ? _notiFyFn.locale : 'en';
+    const L = (key) => t(this.locale, key);
     _contentRoot.innerHTML = `
                 <div id="content" class="d-none" data-type="question">
               <div id="navPane" class="d-flex">
                   <div class="flex-grow-1">
                     <div class="d-flex align-items-center gap-1">
-                      <span id="editModeBadge" class="badge bg-warning text-dark d-none">Edit Mode</span>
+                      <span id="editModeBadge" class="badge bg-warning text-dark d-none">${L('editModeBadge')}</span>
                     </div>
                   </div>
-                  <div id="quizTimer" class="d-none fw-bold fs-5 text-center mb-2"></div>
+                  <div id="quizTimer" class="d-none fw-bold fs-5 align-self-center"></div>
                   <div id="questionCounter" class="d-none fw-semibold text-muted align-self-center me-2"></div>
                   <div>
                     <button type="button" class="btn d-none px-2 mx-2 text-white border-dark-subtle" data-bs-toggle="tooltip"
@@ -31,12 +34,9 @@ export default class PracticeMaker {
                     </nav>
                   </div>
                   <div id="fabPane" class="dropup btn-group position-fixed bottom-0 end-0 rounded-circle me-2 mb-4 z-3">
-                    <!-- <button type="button" class="btn btn-primary d-none" title="Save Question">
-                      <i class="bi fa-floppy-disk"></i> | Save&nbsp;
-                      </button> -->
                     <button type="button" class="btn btn-primary" title="Check Question">
-                        <i class="bi bi-check"></i> | Verify</button>
-                    <button id="quizSubmitBtn" type="button" class="btn btn-danger d-none">Submit Quiz</button>
+                        <i class="bi bi-check"></i> | ${L('verifyBtn')}</button>
+                    <button id="quizSubmitBtn" type="button" class="btn btn-danger d-none">${L('submitQuiz')}</button>
                   </div>
               </div>
               <div id="questionPane" class="row h-50">
@@ -49,12 +49,20 @@ export default class PracticeMaker {
                     <div class="form-floating mb-3 h-100" id="answerContainer"></div>
                   </div>
               </div>
+              <div id="notesPanel" class="mt-3 px-1">
+                <button class="btn btn-sm btn-outline-secondary" type="button" id="notesToggleBtn">
+                  <i class="bi bi-journal-text me-1"></i>${L('myNotes')}
+                </button>
+                <div id="notesBody" class="d-none mt-2">
+                  <textarea id="notesTextarea" class="form-control font-monospace" rows="4" placeholder="${L('notesPlaceholder')}"></textarea>
+                </div>
+              </div>
             </div>
             <div id="notfound" class="row d-none">
               <div class="d-flex align-items-center justify-content-center">
                   <div class="text-center">
-                    <p class="fs-3">There are no questions</p>
-                    <a href="/" class="btn btn-primary">Go Home</a>
+                    <p class="fs-3">${L('noQuestions')}</p>
+                    <a href="/" class="btn btn-primary">${L('goBack')}</a>
                   </div>
               </div>
             </div>
@@ -63,6 +71,17 @@ export default class PracticeMaker {
     this.questionPane.readOnly = true;
 
     this.addActions();
+
+    // Notes toggle
+    document.getElementById('notesToggleBtn').addEventListener('click', () => {
+      document.getElementById('notesBody').classList.toggle('d-none');
+    });
+
+    // Auto-save notes on input
+    document.getElementById('notesTextarea').addEventListener('input', () => {
+      const q = this.questionPane.getQuestion();
+      if (q) localStorage.setItem(`practiceJs_note_${q.id}`, document.getElementById('notesTextarea').value);
+    });
 
   }
 
@@ -90,13 +109,7 @@ export default class PracticeMaker {
       primaryAnchor.innerHTML = "Go Back";
     } else {
 
-      const hash = window.location.hash; // "#q5" or "#123"
-      const idFromHash = hash.replace("#", "");
-      const index = this.questions.findIndex(
-        q => q.id === idFromHash
-      );
-
-      this.setQuestion(index != -1 ? index : 0);
+      this.setQuestion(0);
       document.getElementById("notfound").classList.add("d-none");
       document.getElementById("content").classList.remove("d-none");
 
@@ -144,7 +157,7 @@ export default class PracticeMaker {
     this.currentQuestionIndex = questionIndex;
 
     const counterEl = document.getElementById('questionCounter');
-    if (counterEl) {
+    if (counterEl && this.mode === 'QUIZ') {
       counterEl.textContent = `Q ${questionIndex + 1} / ${this.questions.length}`;
       counterEl.classList.remove('d-none');
     }
@@ -155,7 +168,12 @@ export default class PracticeMaker {
     }
 
     this.questionPane.setQuestion(this.questions[this.currentQuestionIndex]);
-    
+
+    // Load note for this question
+    const noteKey = `practiceJs_note_${this.questions[this.currentQuestionIndex].id}`;
+    const notesTextarea = document.getElementById('notesTextarea');
+    if (notesTextarea) notesTextarea.value = localStorage.getItem(noteKey) || '';
+
   }
 
   doNext() {
@@ -269,7 +287,7 @@ export default class PracticeMaker {
     const answerText = this.questionPane.getAnswer();
 
     if (answerText === "" && !silentMode) {
-      this.notiFyFn.error("Please Select Answer");
+      this.notiFyFn.error(t(this.locale, 'pleaseAnswer'));
       return false;
     }
 
@@ -311,7 +329,7 @@ export default class PracticeMaker {
     if (isCorrect) {
       this.questionPane.verify(true);
       if (this.explainToggleBtn) {
-        this.explainToggleBtn.firstElementChild.innerHTML = "Correct Answer |";
+        this.explainToggleBtn.firstElementChild.innerHTML = t(this.locale, 'correctAnswer');
         this.explainToggleBtn.classList.remove("btn-danger");
         this.explainToggleBtn.classList.add("btn-success");
         this.explainToggleBtn.classList.remove("d-none");
@@ -319,7 +337,7 @@ export default class PracticeMaker {
     } else {
       this.questionPane.verify(false);
       if (this.explainToggleBtn) {
-        this.explainToggleBtn.firstElementChild.innerHTML = "Wrong Answer |";
+        this.explainToggleBtn.firstElementChild.innerHTML = t(this.locale, 'wrongAnswer');
         this.explainToggleBtn.classList.remove("btn-success");
         this.explainToggleBtn.classList.add("btn-danger");
         this.explainToggleBtn.classList.remove("d-none");
@@ -364,9 +382,6 @@ export default class PracticeMaker {
 
     if (this.mode === 'QUIZ') {
       this.checkBtn.classList.add('d-none');
-      if (this.timer) {
-        document.getElementById('quizTimer').classList.remove('d-none');
-      }
       document.getElementById('quizSubmitBtn').addEventListener('click', () => this.doSubmit());
     }
   }
@@ -410,13 +425,26 @@ export default class PracticeMaker {
 
     const heading = document.createElement('h4');
     heading.className = 'text-center mb-3';
-    heading.textContent = `Quiz Complete — Score: ${correct} / ${total}`;
+    heading.textContent = `${t(this.locale, 'quizComplete')} ${correct} / ${total}`;
+
+    if (this.timer) {
+      const timeUsed = this.timer - (this.timeRemaining || 0);
+      const mins = Math.floor(timeUsed / 60).toString().padStart(2, '0');
+      const secs = (timeUsed % 60).toString().padStart(2, '0');
+      const timeEl = document.createElement('p');
+      timeEl.className = 'text-center text-muted small mb-2';
+      timeEl.textContent = `${t(this.locale, 'timeUsed')} ${mins}:${secs}`;
+      resultsDiv.appendChild(heading);
+      resultsDiv.appendChild(timeEl);
+    } else {
+      resultsDiv.appendChild(heading);
+    }
+
     const nav = document.createElement('nav');
     const ul = document.createElement('ul');
     ul.className = 'pagination flex-wrap justify-content-center';
     ul.id = 'resultGrid';
     nav.appendChild(ul);
-    resultsDiv.appendChild(heading);
     resultsDiv.appendChild(nav);
 
     contentEl.classList.add('d-none');
@@ -444,7 +472,7 @@ export default class PracticeMaker {
       const backBtn = document.createElement('button');
       backBtn.id = 'backToResultsBtn';
       backBtn.className = 'btn btn-outline-secondary btn-sm mb-2';
-      backBtn.textContent = '← Back to Results';
+      backBtn.textContent = t(this.locale, 'backToResults');
       backBtn.addEventListener('click', () => {
         contentEl.classList.add('d-none');
         backBtn.remove();
@@ -457,6 +485,7 @@ export default class PracticeMaker {
     contentEl.classList.remove('d-none');
 
     this.setQuestion(index);
+    document.getElementById('quizSubmitBtn').classList.add('d-none');
 
     const question = this.questions[index];
     const savedAnswer = this.userAnswers[question.id] || '';
@@ -468,9 +497,11 @@ export default class PracticeMaker {
 
     const r = this.results[index];
     if (this.explainToggleBtn) {
-      this.explainToggleBtn.firstElementChild.textContent = r.correct ? 'Correct Answer |' : 'Wrong Answer |';
-      this.explainToggleBtn.classList.remove('btn-success', 'btn-danger', 'd-none');
-      this.explainToggleBtn.classList.add(r.correct ? 'btn-success' : 'btn-danger');
+      const label = r.correct ? t(this.locale, 'correctAnswer') : (r.answered ? t(this.locale, 'wrongAnswer') : t(this.locale, 'notAttempted'));
+      const btnClass = r.correct ? 'btn-success' : (r.answered ? 'btn-danger' : 'btn-secondary');
+      this.explainToggleBtn.firstElementChild.textContent = label;
+      this.explainToggleBtn.classList.remove('btn-success', 'btn-danger', 'btn-secondary', 'd-none');
+      this.explainToggleBtn.classList.add(btnClass);
     }
   }
 
