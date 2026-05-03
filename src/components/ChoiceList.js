@@ -89,7 +89,7 @@ export default class ChoiceList {
         const liEl = this._element.children[index];
         const labelEl = liEl.querySelector("label");
         labelEl.attributes["data-id"] = choice.id;
-        labelEl.textContent = choice.label;
+        labelEl.textContent = choice.label || choice.choice || choice.match || '';
 
         liEl
           .querySelector("i.bi-arrow-up")
@@ -127,7 +127,7 @@ export default class ChoiceList {
         input.id = choice.id;
         const clabel = liEl.querySelector("label");
         clabel.htmlFor = choice.id;
-        clabel.querySelector("span").textContent = choice.label;
+        clabel.querySelector("span").textContent = choice.label || choice.choice || '';
 
         renderMathInElement(clabel.querySelector("span"), {
           delimiters: [

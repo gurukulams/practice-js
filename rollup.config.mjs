@@ -8,6 +8,7 @@ export default {
       file: 'dist/practice.bundle.js',
       format: 'umd',
       name: 'PracticeMaker',
+      exports: 'named',
       sourcemap: true
     },
     {
