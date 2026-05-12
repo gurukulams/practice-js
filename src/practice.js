@@ -1,19 +1,31 @@
 import QuestionPane from "./components/QuestionPane";
+import AuthorPane from "./components/AuthorPane";
+import { t } from "./i18n";
+import { loadUserQuestions, saveUserQuestion, deleteUserQuestion } from "./storage";
+
+export { loadUserQuestions, saveUserQuestion, deleteUserQuestion };
 
 export default class PracticeMaker {
   constructor(_contentRoot, _notiFyFn) {
     this.notiFyFn = _notiFyFn;
     this.mode = (_notiFyFn && _notiFyFn.mode) ? _notiFyFn.mode : 'PRACTICE';
     this.timer = (_notiFyFn && _notiFyFn.timer) ? _notiFyFn.timer : null;
+    this.locale = (_notiFyFn && _notiFyFn.locale) ? _notiFyFn.locale : 'en';
+    const L = (key) => t(this.locale, key);
     _contentRoot.innerHTML = `
                 <div id="content" class="d-none" data-type="question">
-              <div id="navPane" class="d-flex">
+              <div id="navPane" class="d-flex align-items-center">
                   <div class="flex-grow-1">
                     <div class="d-flex align-items-center gap-1">
-                      <span id="editModeBadge" class="badge bg-warning text-dark d-none">Edit Mode</span>
+                      <span id="editModeBadge" class="badge bg-warning text-dark d-none">${L('editModeBadge')}</span>
                     </div>
                   </div>
-                  <div id="quizTimer" class="d-none fw-bold fs-5 text-center mb-2"></div>
+                  <div id="editControls" class="d-none d-flex align-items-center gap-2 me-2">
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="editAddNavBtn">
+                      <i class="bi bi-plus me-1"></i>Add
+                    </button>
+                  </div>
+                  <div id="quizTimer" class="d-none fw-bold fs-5 align-self-center me-3"></div>
                   <div id="questionCounter" class="d-none fw-semibold text-muted align-self-center me-2"></div>
                   <div>
                     <button type="button" class="btn d-none px-2 mx-2 text-white border-dark-subtle" data-bs-toggle="tooltip"
@@ -22,47 +34,84 @@ export default class PracticeMaker {
                         <i class="bi bi-question"></i>
                     </button>
                   </div>
-                  <div>
-                    <nav aria-label="Page Navigation">
-                        <ul class="pagination">
-                            <li class="page-item" title="Previous Question"><a class="page-link" href="javascript://" aria-label="Previous"><span aria-hidden="true"><i class="bi bi-arrow-left"></i></span></a></li>
-                            <li class="page-item" title="Next Question"><a class="page-link" href="javascript://" aria-label="Next"><span aria-hidden="true"><i class="bi bi-arrow-right"></i></span></a></li>
-                        </ul>
-                    </nav>
-                  </div>
-                  <div id="fabPane" class="dropup btn-group position-fixed bottom-0 end-0 rounded-circle me-2 mb-4 z-3">
-                    <!-- <button type="button" class="btn btn-primary d-none" title="Save Question">
-                      <i class="bi fa-floppy-disk"></i> | Save&nbsp;
-                      </button> -->
-                    <button type="button" class="btn btn-primary" title="Check Question">
-                        <i class="bi bi-check"></i> | Verify</button>
-                    <button id="quizSubmitBtn" type="button" class="btn btn-danger d-none">Submit Quiz</button>
-                  </div>
               </div>
               <div id="questionPane" class="row h-50">
                   <div class="col-12 col-md-6">
-                      <span id="questionContainer" class="lead"><textarea class="form-control h-100" placeholder="Question" id="qTxt" rows="3"></textarea></span>
+                      <span id="questionContainer" class="lead"></span>
                     <div class="form-floating mb-3 h-100" id="matcheContainer"></div>
                   </div>
                   <div class="col-12 col-md-6">
-                      <span id="explanationContainer" class="d-none"><textarea class="form-control h-100" placeholder="Explanation" id="eTxt" rows="3"></textarea></span>
+                      <span id="explanationContainer" class="d-none"></span>
                     <div class="form-floating mb-3 h-100" id="answerContainer"></div>
                   </div>
+              </div>
+              <div id="notesPanel" class="mt-3 px-1 col-12 col-md-6">
+                <button class="btn btn-sm btn-outline-secondary" type="button" id="notesToggleBtn">
+                  <i class="bi bi-journal-text me-1"></i>${L('myNotes')}
+                </button>
+                <div id="notesBody" class="d-none mt-2">
+                  <textarea id="notesTextarea" class="form-control font-monospace" rows="4" placeholder="${L('notesPlaceholder')}"></textarea>
+                </div>
               </div>
             </div>
             <div id="notfound" class="row d-none">
               <div class="d-flex align-items-center justify-content-center">
                   <div class="text-center">
-                    <p class="fs-3">There are no questions</p>
-                    <a href="/" class="btn btn-primary">Go Home</a>
+                    <p class="fs-3">${L('noQuestions')}</p>
+                    <a href="/" class="btn btn-primary">${L('goBack')}</a>
                   </div>
               </div>
+            </div>
+            <div id="editEmptyState" class="d-none">
+              <div class="d-flex align-items-center justify-content-center" style="min-height:300px">
+                <div class="text-center text-muted">
+                  <i class="bi bi-journal-plus fs-1 mb-3 d-block"></i>
+                  <p class="fs-5 mb-3">No questions yet</p>
+                  <button type="button" class="btn btn-primary" id="editEmptyAddBtn">
+                    <i class="bi bi-plus me-1"></i>Add Question
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div id="authorContainer" class="d-none"></div>
+            <!-- Bottom action bar — outside #content so always visible -->
+            <div id="fabPane" class="position-fixed bottom-0 end-0 d-flex align-items-center gap-2 me-3 mb-4 z-3">
+              <button type="button" class="btn btn-outline-secondary" id="prevBtn" title="Previous Question" disabled>
+                <i class="bi bi-arrow-left"></i>
+              </button>
+              <span id="editCounter" class="text-muted small fw-semibold d-none"></span>
+              <button type="button" class="btn btn-primary" id="checkBtn" title="Check Question">
+                <i class="bi bi-check"></i> ${L('verifyBtn')}
+              </button>
+              <button id="quizSubmitBtn" type="button" class="btn btn-danger d-none">${L('submitQuiz')}</button>
+              <button type="button" class="btn btn-outline-secondary" id="nextBtn" title="Next Question">
+                <i class="bi bi-arrow-right"></i>
+              </button>
             </div>
             `;
     this.questionPane = new QuestionPane(this.shuffle);
     this.questionPane.readOnly = true;
 
     this.addActions();
+
+    // Arrow key navigation
+    this._keyHandler = (e) => {
+      const tag = document.activeElement.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (e.key === 'ArrowRight' && !this.nextBtn.disabled) this.doNext();
+      if (e.key === 'ArrowLeft'  && !this.prevBtn.disabled) this.doPrevious();
+    };
+    document.addEventListener('keydown', this._keyHandler);
+
+    // Notes toggle
+    document.getElementById('notesToggleBtn').addEventListener('click', () => {
+    });
+
+    // Auto-save notes on input
+    document.getElementById('notesTextarea').addEventListener('input', () => {
+      const q = this.questionPane.getQuestion();
+      if (q) localStorage.setItem(`practiceJs_note_${q.id}`, document.getElementById('notesTextarea').value);
+    });
 
   }
 
@@ -81,27 +130,41 @@ export default class PracticeMaker {
     this.userAnswers = {};
 
     if (this.questions.length === 0) {
-      document.getElementById("notfound").classList.remove("d-none");
-      document.getElementById("content").classList.add("d-none");
-      const primaryAnchor = document
-        .getElementById("notfound")
-        .querySelector("a.btn-primary");
-      primaryAnchor.href = document.referrer;
-      primaryAnchor.innerHTML = "Go Back";
+      if (this.mode === 'EDIT') {
+        document.getElementById('editEmptyState').classList.remove('d-none');
+        document.getElementById('content').classList.add('d-none');
+        document.getElementById('notfound').classList.add('d-none');
+      } else {
+        document.getElementById("notfound").classList.remove("d-none");
+        document.getElementById("content").classList.add("d-none");
+        const primaryAnchor = document.getElementById("notfound").querySelector("a.btn-primary");
+        primaryAnchor.href = document.referrer;
+        primaryAnchor.innerHTML = "Go Back";
+      }
     } else {
-
-      const hash = window.location.hash; // "#q5" or "#123"
-      const idFromHash = hash.replace("#", "");
-      const index = this.questions.findIndex(
-        q => q.id === idFromHash
-      );
-
-      this.setQuestion(index != -1 ? index : 0);
+      document.getElementById('editEmptyState').classList.add('d-none');
       document.getElementById("notfound").classList.add("d-none");
+
+      let startIndex = 0;
+      if (this.mode === 'EDIT') {
+        const hash = window.location.hash;
+        const idFromHash = hash.replace('#', '');
+        const index = idFromHash ? this.questions.findIndex(q => q.id === idFromHash) : -1;
+        startIndex = index !== -1 ? index : 0;
+      }
+
+      this.setQuestion(startIndex);
       document.getElementById("content").classList.remove("d-none");
+
+      if (this.mode === 'EDIT') {
+        document.getElementById('editControls').classList.remove('d-none');
+        document.getElementById('editControls').classList.add('d-flex');
+        this._updateEditBtn();
+      }
 
       if (this.mode === 'QUIZ' && this.timer) {
         this.timeRemaining = this.timer;
+        document.getElementById('quizTimer').classList.remove('d-none');
         this.updateTimerDisplay();
         this.timerInterval = setInterval(() => {
           this.timeRemaining--;
@@ -123,39 +186,48 @@ export default class PracticeMaker {
       this.userAnswers[currentQ.id] = this.questionPane.getAnswer();
     }
 
-    // is Practice Mode
+    // hide explain btn in PRACTICE mode when navigating
     if (this.checkBtn && !this.checkBtn.classList.contains("d-none")) {
-      this.explainToggleBtn.classList.add("d-none");
+      if (this.explainToggleBtn) this.explainToggleBtn.classList.add("d-none");
       this.doExplain(false);
     }
 
-    if (questionIndex === this.questions.length - 1) {
-      this.nextBtn.classList.add("disabled");
-    } else {
-      this.nextBtn.classList.remove("disabled");
-    }
+    const isLast  = questionIndex === this.questions.length - 1;
+    const isFirst = questionIndex === 0;
 
-    if (questionIndex === 0) {
-      this.previousBtn.classList.add("disabled");
-    } else {
-      this.previousBtn.classList.remove("disabled");
+    if (this.nextBtn) this.nextBtn.disabled = isLast;
+    if (this.prevBtn) this.prevBtn.disabled = isFirst;
+
+    // QUIZ: hide Next on last, show Submit; hide Submit on non-last, show Next
+    if (this.mode === 'QUIZ') {
+      this.nextBtn.classList.toggle('d-none', isLast);
+      document.getElementById('quizSubmitBtn').classList.toggle('d-none', !isLast);
     }
 
     this.currentQuestionIndex = questionIndex;
 
     const counterEl = document.getElementById('questionCounter');
-    if (counterEl) {
+    if (counterEl && (this.mode === 'QUIZ' || this.mode === 'PRACTICE')) {
       counterEl.textContent = `Q ${questionIndex + 1} / ${this.questions.length}`;
       counterEl.classList.remove('d-none');
     }
 
+    this.questionPane.setQuestion(this.questions[this.currentQuestionIndex]);
+
+    // Restore saved answer when navigating back in QUIZ
     if (this.mode === 'QUIZ') {
-      const isLast = questionIndex === this.questions.length - 1;
-      document.getElementById('quizSubmitBtn').classList.toggle('d-none', !isLast);
+      const q = this.questions[this.currentQuestionIndex];
+      const saved = this.userAnswers[q.id];
+      if (saved) this._restoreAnswer(q, saved);
     }
 
-    this.questionPane.setQuestion(this.questions[this.currentQuestionIndex]);
-    
+    // Load note for this question
+    const noteKey = `practiceJs_note_${this.questions[this.currentQuestionIndex].id}`;
+    const notesTextarea = document.getElementById('notesTextarea');
+    if (notesTextarea) notesTextarea.value = localStorage.getItem(noteKey) || '';
+
+    if (this.mode === 'EDIT') this._updateEditBtn();
+
   }
 
   doNext() {
@@ -269,7 +341,7 @@ export default class PracticeMaker {
     const answerText = this.questionPane.getAnswer();
 
     if (answerText === "" && !silentMode) {
-      this.notiFyFn.error("Please Select Answer");
+      this.notiFyFn.error(t(this.locale, 'pleaseAnswer'));
       return false;
     }
 
@@ -311,7 +383,7 @@ export default class PracticeMaker {
     if (isCorrect) {
       this.questionPane.verify(true);
       if (this.explainToggleBtn) {
-        this.explainToggleBtn.firstElementChild.innerHTML = "Correct Answer |";
+        this.explainToggleBtn.firstElementChild.innerHTML = t(this.locale, 'correctAnswer');
         this.explainToggleBtn.classList.remove("btn-danger");
         this.explainToggleBtn.classList.add("btn-success");
         this.explainToggleBtn.classList.remove("d-none");
@@ -319,7 +391,7 @@ export default class PracticeMaker {
     } else {
       this.questionPane.verify(false);
       if (this.explainToggleBtn) {
-        this.explainToggleBtn.firstElementChild.innerHTML = "Wrong Answer |";
+        this.explainToggleBtn.firstElementChild.innerHTML = t(this.locale, 'wrongAnswer');
         this.explainToggleBtn.classList.remove("btn-success");
         this.explainToggleBtn.classList.add("btn-danger");
         this.explainToggleBtn.classList.remove("d-none");
@@ -330,44 +402,141 @@ export default class PracticeMaker {
 
   addActions() {
     const navPane = document.getElementById("navPane");
-    const fabPane = document.getElementById("fabPane");
 
-    fabPane.querySelectorAll("i").forEach((element) => {
-      const classList = element.classList;
-      if  (classList.contains("bi-check")) {
-        this.checkBtn = element.parentElement;
-        element.parentElement.addEventListener("click", () => this.doCheck());
-      }
-    });
-
+    // Explain toggle (still in navPane)
     navPane.querySelectorAll("i").forEach((element) => {
-      const classList = element.classList;
-      if (classList.contains("bi-question")) {
+      if (element.classList.contains("bi-question")) {
         this.explainToggleBtn = element.parentElement;
         this.explainToggleBtn.addEventListener("click", () =>
-          this.doExplain(
-            !this.explainToggleBtn.classList.contains("btn-primary")
-          )
+          this.doExplain(!this.explainToggleBtn.classList.contains("btn-primary"))
         );
       }
     });
 
-    navPane.querySelectorAll("a.page-link").forEach((element) => {
-      if (element.ariaLabel === "Next") {
-        this.nextBtn = element;
-        element.addEventListener("click", () => this.doNext());
-      } else if (element.ariaLabel === "Previous") {
-        this.previousBtn = element;
-        element.addEventListener("click", () => this.doPrevious());
-      }
-    });
+    // Bottom bar buttons
+    this.checkBtn   = document.getElementById('checkBtn');
+    this.prevBtn    = document.getElementById('prevBtn');
+    this.nextBtn    = document.getElementById('nextBtn');
+
+    this.checkBtn.addEventListener("click", () => this.doCheck());
+    this.prevBtn.addEventListener("click",  () => this.doPrevious());
+    this.nextBtn.addEventListener("click",  () => this.doNext());
 
     if (this.mode === 'QUIZ') {
       this.checkBtn.classList.add('d-none');
-      if (this.timer) {
-        document.getElementById('quizTimer').classList.remove('d-none');
-      }
       document.getElementById('quizSubmitBtn').addEventListener('click', () => this.doSubmit());
+    }
+
+    if (this.mode === 'EDIT') {
+      this.checkBtn.classList.add('d-none');
+      document.getElementById('editCounter').classList.remove('d-none');
+      document.getElementById('editAddNavBtn').addEventListener('click', () => this.showAuthorPane(null));
+      document.getElementById('editEmptyAddBtn').addEventListener('click', () => this.showAuthorPane(null));
+      document.getElementById('questionPane').addEventListener('dblclick', () => {
+        const q = this.questions[this.currentQuestionIndex];
+        if (q && q._source === 'user') this.showAuthorPane(q);
+      });
+    }
+  }
+
+  _updateEditBtn() {
+    const counter = document.getElementById('editCounter');
+    if (counter) counter.textContent = `${this.currentQuestionIndex + 1} / ${this.questions.length}`;
+    if (this.prevBtn) this.prevBtn.disabled = this.currentQuestionIndex === 0;
+    if (this.nextBtn) this.nextBtn.disabled = this.currentQuestionIndex === this.questions.length - 1;
+  }
+
+  showAuthorPane(question) {
+    document.getElementById('content').classList.add('d-none');
+    document.getElementById('editEmptyState').classList.add('d-none');
+    const container = document.getElementById('authorContainer');
+    container.classList.remove('d-none');
+
+    // Show fab with Save / Cancel
+    const fabPane = document.getElementById('fabPane');
+
+    const showFormFab = () => {
+      fabPane.classList.remove('d-none');
+      fabPane.innerHTML = `
+        <button type="button" class="btn btn-link btn-sm text-muted" id="authorChangeTypeFabBtn">← Change type</button>
+        <button type="button" class="btn btn-outline-secondary" id="authorCancelFabBtn">Cancel</button>
+        <button type="button" class="btn btn-primary" id="authorSaveFabBtn"><i class="bi bi-check me-1"></i>Save</button>`;
+      document.getElementById('authorChangeTypeFabBtn').addEventListener('click', () => {
+        this._authorPane._destroyEditors();
+        this._authorPane.selectedType = null;
+        this._authorPane._renderTypePicker();
+        showPickerFab();
+      });
+      document.getElementById('authorSaveFabBtn').addEventListener('click', () => this._authorPane._save());
+      document.getElementById('authorCancelFabBtn').addEventListener('click', () => this._authorPane._destroy());
+    };
+
+    const showPickerFab = () => {
+      fabPane.classList.remove('d-none');
+      fabPane.innerHTML = `
+        <button type="button" class="btn btn-outline-secondary" id="authorCancelFabBtn">Cancel</button>`;
+      document.getElementById('authorCancelFabBtn').addEventListener('click', () => this._authorPane._destroy());
+    };
+
+    const restoreFab = () => {
+      // Rebuild the original nav bar HTML (same as initial HTML in constructor)
+      const L = (key) => t(this.locale, key);
+      fabPane.innerHTML = `
+        <button type="button" class="btn btn-outline-secondary" id="prevBtn" title="Previous Question" disabled>
+          <i class="bi bi-arrow-left"></i>
+        </button>
+        <span id="editCounter" class="text-muted small fw-semibold"></span>
+        <button type="button" class="btn btn-primary d-none" id="checkBtn" title="Check Question">
+          <i class="bi bi-check"></i> ${L('verifyBtn')}
+        </button>
+        <button id="quizSubmitBtn" type="button" class="btn btn-danger d-none">${L('submitQuiz')}</button>
+        <button type="button" class="btn btn-outline-secondary" id="nextBtn" title="Next Question">
+          <i class="bi bi-arrow-right"></i>
+        </button>`;
+      // Re-bind button references and listeners
+      this.prevBtn  = document.getElementById('prevBtn');
+      this.nextBtn  = document.getElementById('nextBtn');
+      this.checkBtn = document.getElementById('checkBtn');
+      this.prevBtn.addEventListener('click',  () => this.doPrevious());
+      this.nextBtn.addEventListener('click',  () => this.doNext());
+      fabPane.classList.remove('d-none');
+    };
+
+    this._authorPane = new AuthorPane(container, {
+      question,
+      hideFooterBtns: true,
+      onFormReady: () => showFormFab(),
+      onPickerReady: () => showPickerFab(),
+      onSave: (q) => {
+        container.classList.add('d-none');
+        this._authorPane = null;
+        restoreFab();
+        const idx = this.questions.findIndex(x => x.id === q.id);
+        if (idx >= 0) this.questions[idx] = q;
+        else this.questions.push(q);
+        this.setQuestion(this.questions.findIndex(x => x.id === q.id));
+        document.getElementById('content').classList.remove('d-none');
+        document.getElementById('editControls').classList.remove('d-none');
+        document.getElementById('editControls').classList.add('d-flex');
+        this._updateEditBtn();
+      },
+      onCancel: () => {
+        container.classList.add('d-none');
+        this._authorPane = null;
+        restoreFab();
+        if (this.questions.length === 0) {
+          document.getElementById('editEmptyState').classList.remove('d-none');
+        } else {
+          document.getElementById('content').classList.remove('d-none');
+        }
+      },
+    });
+
+    // Initial fab state depends on whether type picker or form shown
+    if (question) {
+      showFormFab();
+    } else {
+      showPickerFab();
     }
   }
 
@@ -375,6 +544,10 @@ export default class PracticeMaker {
     if (this.timerInterval) {
       clearInterval(this.timerInterval);
       this.timerInterval = null;
+    }
+    if (this._keyHandler) {
+      document.removeEventListener('keydown', this._keyHandler);
+      this._keyHandler = null;
     }
   }
 
@@ -410,13 +583,26 @@ export default class PracticeMaker {
 
     const heading = document.createElement('h4');
     heading.className = 'text-center mb-3';
-    heading.textContent = `Quiz Complete — Score: ${correct} / ${total}`;
+    heading.textContent = `${t(this.locale, 'quizComplete')} ${correct} / ${total}`;
+
+    if (this.timer) {
+      const timeUsed = this.timer - (this.timeRemaining || 0);
+      const mins = Math.floor(timeUsed / 60).toString().padStart(2, '0');
+      const secs = (timeUsed % 60).toString().padStart(2, '0');
+      const timeEl = document.createElement('p');
+      timeEl.className = 'text-center text-muted small mb-2';
+      timeEl.textContent = `${t(this.locale, 'timeUsed')} ${mins}:${secs}`;
+      resultsDiv.appendChild(heading);
+      resultsDiv.appendChild(timeEl);
+    } else {
+      resultsDiv.appendChild(heading);
+    }
+
     const nav = document.createElement('nav');
     const ul = document.createElement('ul');
     ul.className = 'pagination flex-wrap justify-content-center';
     ul.id = 'resultGrid';
     nav.appendChild(ul);
-    resultsDiv.appendChild(heading);
     resultsDiv.appendChild(nav);
 
     contentEl.classList.add('d-none');
@@ -444,7 +630,7 @@ export default class PracticeMaker {
       const backBtn = document.createElement('button');
       backBtn.id = 'backToResultsBtn';
       backBtn.className = 'btn btn-outline-secondary btn-sm mb-2';
-      backBtn.textContent = '← Back to Results';
+      backBtn.textContent = t(this.locale, 'backToResults');
       backBtn.addEventListener('click', () => {
         contentEl.classList.add('d-none');
         backBtn.remove();
@@ -457,6 +643,7 @@ export default class PracticeMaker {
     contentEl.classList.remove('d-none');
 
     this.setQuestion(index);
+    document.getElementById('quizSubmitBtn').classList.add('d-none');
 
     const question = this.questions[index];
     const savedAnswer = this.userAnswers[question.id] || '';
@@ -468,9 +655,11 @@ export default class PracticeMaker {
 
     const r = this.results[index];
     if (this.explainToggleBtn) {
-      this.explainToggleBtn.firstElementChild.textContent = r.correct ? 'Correct Answer |' : 'Wrong Answer |';
-      this.explainToggleBtn.classList.remove('btn-success', 'btn-danger', 'd-none');
-      this.explainToggleBtn.classList.add(r.correct ? 'btn-success' : 'btn-danger');
+      const label = r.correct ? t(this.locale, 'correctAnswer') : (r.answered ? t(this.locale, 'wrongAnswer') : t(this.locale, 'notAttempted'));
+      const btnClass = r.correct ? 'btn-success' : (r.answered ? 'btn-danger' : 'btn-secondary');
+      this.explainToggleBtn.firstElementChild.textContent = label;
+      this.explainToggleBtn.classList.remove('btn-success', 'btn-danger', 'btn-secondary', 'd-none');
+      this.explainToggleBtn.classList.add(btnClass);
     }
   }
 
@@ -488,12 +677,12 @@ export default class PracticeMaker {
         break;
       }
       case 'TEXT_ANSWER': {
-        const inp = document.getElementById('textAnswerInput');
+        const inp = this.questionPane.answerContainer.querySelector(`[data-qid="${question.id}"]`);
         if (inp) inp.value = answerText;
         break;
       }
       case 'NUMBER_ANSWER': {
-        const inp = document.getElementById('numberAnswerInput');
+        const inp = this.questionPane.answerContainer.querySelector(`[data-qid="${question.id}"]`);
         if (inp) inp.value = answerText;
         break;
       }

@@ -7,12 +7,13 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
   </head>
   <body>
 
     <!-- Navbar -->
     <nav class="navbar navbar-expand-md bg-body-tertiary border-bottom px-3 py-2">
-      <a class="navbar-brand fw-semibold" href="#">Practice.js Playground</a>
+      <a class="navbar-brand fw-semibold" href="#"><span data-i18n="appTitle">Practice.js Playground</span></a>
 
       <button class="navbar-toggler ms-auto" type="button" data-bs-toggle="collapse" data-bs-target="#navbarControls" aria-controls="navbarControls" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
@@ -21,14 +22,20 @@
       <div class="collapse navbar-collapse" id="navbarControls">
         <div class="navbar-nav ms-auto d-flex flex-row flex-wrap align-items-center gap-2 mt-2 mt-md-0">
 
+          <!-- Language select -->
+          <select class="form-select form-select-sm" id="langSelect" style="width:60px">
+            <option value="en" selected>EN</option>
+            <option value="ta">த</option>
+          </select>
+
           <!-- Options button — opens offcanvas -->
-          <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="offcanvas" data-bs-target="#optionsOffcanvas" aria-controls="optionsOffcanvas">
-            <i class="bi bi-sliders me-1"></i>Options
+          <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#optionsModal">
+            <i class="bi bi-sliders me-1"></i><span data-i18n="options">Options</span>
           </button>
 
           <!-- Mode select -->
           <div class="d-flex align-items-center gap-1">
-            <label class="form-label mb-0 text-nowrap small fw-semibold" for="modeSelect">Mode</label>
+            <label class="form-label mb-0 text-nowrap small fw-semibold" for="modeSelect" data-i18n="modeLabel">Mode</label>
             <select class="form-select form-select-sm" id="modeSelect" style="min-width:110px">
               <option value="PRACTICE" selected>PRACTICE</option>
               <option value="QUIZ">QUIZ</option>
@@ -36,46 +43,68 @@
             </select>
           </div>
 
-          <!-- Timer + Max Questions (hidden in EDIT mode) -->
-          <div id="timerRow" class="d-flex align-items-center gap-2">
-            <div class="d-flex align-items-center gap-1">
-              <label class="form-label mb-0 text-nowrap small fw-semibold" for="timerInput">
-                <i class="bi bi-stopwatch me-1"></i>Timer (s)
-              </label>
-              <input type="number" class="form-control form-control-sm" id="timerInput" value="0" min="0" style="width:80px">
-            </div>
-            <div class="d-flex align-items-center gap-1">
-              <label class="form-label mb-0 text-nowrap small fw-semibold" for="maxQInput">Max Q</label>
-              <input type="number" class="form-control form-control-sm" id="maxQInput" placeholder="all" min="1" style="width:70px">
-            </div>
-            <button class="btn btn-sm btn-primary" id="applyBtn" type="button">
-              <i class="bi bi-arrow-clockwise me-1"></i>Apply
-            </button>
-          </div>
-
         </div>
       </div>
     </nav>
 
-    <!-- Options Offcanvas -->
-    <div class="offcanvas offcanvas-end" tabindex="-1" id="optionsOffcanvas" aria-labelledby="optionsOffcanvasLabel" style="width:min(500px,95vw)">
-      <div class="offcanvas-header border-bottom">
-        <h5 class="offcanvas-title" id="optionsOffcanvasLabel">
-          <i class="bi bi-sliders me-2"></i>Questions JSON
-        </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-      </div>
-      <div class="offcanvas-body d-flex flex-column gap-3">
-        <p class="text-muted small mb-0">Edit the JSON below and click <strong>Load</strong> to apply changes. This updates the current session only.</p>
-        <textarea class="form-control font-monospace flex-grow-1" id="questionsJsonArea" rows="20" spellcheck="false" style="resize:vertical;min-height:300px"></textarea>
-        <div id="jsonErrorMsg" class="text-danger small d-none"></div>
-        <div class="d-flex gap-2 justify-content-end">
-          <button type="button" class="btn btn-outline-secondary btn-sm" id="resetJsonBtn">
-            <i class="bi bi-arrow-counterclockwise me-1"></i>Reset
-          </button>
-          <button type="button" class="btn btn-primary btn-sm" id="loadJsonBtn">
-            <i class="bi bi-upload me-1"></i>Load
-          </button>
+    <!-- Options Modal -->
+    <div class="modal fade" tabindex="-1" id="optionsModal" aria-labelledby="optionsModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="optionsModalLabel">
+              <i class="bi bi-sliders me-2"></i><span data-i18n="options">Options</span>
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body d-flex flex-column gap-3">
+
+            <!-- Practice settings — visible only in PRACTICE mode -->
+            <div id="practiceSettingsSection" class="d-none">
+              <h6 class="fw-semibold mb-3"><i class="bi bi-list-ol me-2"></i>Scope</h6>
+              <div style="max-width:160px">
+                <label class="form-label fw-semibold small" for="practiceMaxQInput">Questions to show <span class="text-muted fw-normal" id="practiceMaxQHint"></span></label>
+                <input type="number" class="form-control form-control-sm" id="practiceMaxQInput" min="1">
+              </div>
+            </div>
+
+            <!-- Quiz settings — visible only in QUIZ mode -->
+            <div id="quizSettingsSection" class="d-none">
+              <h6 class="fw-semibold mb-3"><i class="bi bi-stopwatch me-2"></i>Quiz Settings</h6>
+              <div class="row g-3">
+                <div class="col-6">
+                  <label class="form-label fw-semibold small" for="timerInput"><i class="bi bi-stopwatch me-1"></i>Duration (seconds)</label>
+                  <input type="number" class="form-control form-control-sm" id="timerInput" placeholder="no timer" min="1">
+                </div>
+                <div class="col-6">
+                  <label class="form-label fw-semibold small" for="maxQInput">Max Questions <span class="text-muted fw-normal" id="quizMaxQHint"></span></label>
+                  <input type="number" class="form-control form-control-sm" id="maxQInput" placeholder="all" min="1">
+                </div>
+              </div>
+            </div>
+
+            <!-- JSON editor — visible only in EDIT mode -->
+            <div id="jsonEditorSection" class="d-none">
+              <p class="text-muted small mb-0">Edit the JSON below and click <strong>Load</strong> to apply changes. This updates the current session only.</p>
+              <textarea class="form-control font-monospace" id="questionsJsonArea" rows="15" spellcheck="false" style="resize:vertical;min-height:200px"></textarea>
+              <div id="jsonErrorMsg" class="text-danger small d-none"></div>
+            </div>
+
+          </div>
+          <div class="modal-footer">
+            <div id="jsonBtns" class="d-none d-flex gap-2 me-auto">
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="resetJsonBtn">
+                <i class="bi bi-arrow-counterclockwise me-1"></i>Reset
+              </button>
+              <button type="button" class="btn btn-primary btn-sm" id="loadJsonBtn">
+                <i class="bi bi-upload me-1"></i>Load
+              </button>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+            <button type="button" class="btn btn-primary btn-sm" id="optionsApplyBtn">
+              <i class="bi bi-arrow-clockwise me-1"></i>Apply
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -111,6 +140,58 @@
 
       var currentQuestions = [];
       var currentMode = 'PRACTICE';
+      var currentLocale = 'en';
+
+      // ── Page-level i18n ───────────────────────────────────────────────────────
+
+      var pageStrings = {
+        en: {
+          appTitle: 'Practice.js Playground',
+          options: 'Options',
+          modeLabel: 'Mode',
+          timerLabel: 'Timer (s)',
+          maxQLabel: 'Max Q',
+          applyBtn: 'Apply',
+          timerRadio: 'Timer',
+          maxQRadio: 'Max Q',
+          questionsJson: 'Questions JSON',
+          jsonDesc: 'Edit the JSON below and click <strong>Load</strong> to apply changes. This updates the current session only.',
+          resetBtn: 'Reset',
+          loadBtn: 'Load',
+          loadSuccess: 'Questions loaded successfully.',
+          loadFail: 'Failed to load questions: ',
+        },
+        ta: {
+          appTitle: 'Practice.js விளையாட்டரங்கு',
+          options: 'விருப்பங்கள்',
+          modeLabel: 'முறை',
+          timerLabel: 'நேரம் (வி)',
+          maxQLabel: 'அதிக கே',
+          applyBtn: 'பயன்படுத்து',
+          timerRadio: 'நேரம்',
+          maxQRadio: 'அதிக கே',
+          questionsJson: 'கேள்விகள் JSON',
+          jsonDesc: 'கீழே உள்ள JSON-ஐ திருத்தி <strong>ஏற்று</strong> என்பதை கிளிக் செய்யவும்.',
+          resetBtn: 'மீட்டமை',
+          loadBtn: 'ஏற்று',
+          loadSuccess: 'கேள்விகள் வெற்றிகரமாக ஏற்றப்பட்டன.',
+          loadFail: 'கேள்விகளை ஏற்ற தோல்வி: ',
+        }
+      };
+
+      function applyPageLocale(locale) {
+        var s = pageStrings[locale] || pageStrings.en;
+        document.querySelectorAll('[data-i18n="appTitle"]').forEach(function(el) { el.textContent = s.appTitle; });
+        document.querySelectorAll('[data-i18n="options"]').forEach(function(el) { el.textContent = s.options; });
+        document.querySelector('[data-i18n="modeLabel"]').textContent = s.modeLabel;
+        document.querySelector('label[for="maxQInput"]').textContent = s.maxQLabel;
+        document.querySelector('label[for="optTimer"]').textContent = s.timerRadio;
+        document.querySelector('label[for="optMaxQ"]').textContent = s.maxQRadio;
+        var jsonDescEl = document.querySelector('#jsonEditorSection p.text-muted');
+        if (jsonDescEl) jsonDescEl.innerHTML = s.jsonDesc;
+        document.getElementById('resetJsonBtn').innerHTML = '<i class="bi bi-arrow-counterclockwise me-1"></i>' + s.resetBtn;
+        document.getElementById('loadJsonBtn').innerHTML = '<i class="bi bi-upload me-1"></i>' + s.loadBtn;
+      }
 
       // ── Build a fresh PracticeMaker ────────────────────────────────────────
 
@@ -124,12 +205,15 @@
 
         root.innerHTML = '';
 
-        var qs = (maxQ && maxQ > 0 && maxQ < questions.length)
-          ? questions.slice(0, maxQ)
-          : questions;
+        var qs = mode === 'EDIT'
+          ? questions.filter(function(q) { return q._source === 'user'; })
+          : (maxQ && maxQ > 0 && maxQ < questions.length)
+            ? questions.slice(0, maxQ)
+            : questions;
 
         var opts = {
           mode: mode,
+          locale: currentLocale,
           error: function(msg) { showAlert(msg, 'danger'); }
         };
 
@@ -137,7 +221,7 @@
           opts.timer = timer;
         }
 
-        var pm = new PracticeMaker(root, opts);
+        var pm = new PracticeMaker.default(root, opts);
 
         if (mode === 'EDIT') {
           pm.setEditable(true);
@@ -155,32 +239,59 @@
 
       function applyMode() {
         currentMode = document.getElementById('modeSelect').value;
-        var timer = parseInt(document.getElementById('timerInput').value) || 0;
-        var maxQRaw = parseInt(document.getElementById('maxQInput').value);
-        var maxQ = isNaN(maxQRaw) ? null : maxQRaw;
+        var timer = 0, maxQ = null;
+
+        if (currentMode === 'PRACTICE') {
+          var raw = parseInt(document.getElementById('practiceMaxQInput').value);
+          if (!isNaN(raw) && raw > 0 && raw < currentQuestions.length) maxQ = raw;
+        }
+
+        if (currentMode === 'QUIZ') {
+          var timerRaw = parseInt(document.getElementById('timerInput').value);
+          timer = (!isNaN(timerRaw) && timerRaw > 0) ? timerRaw : 0;
+          var maxQRaw = parseInt(document.getElementById('maxQInput').value);
+          maxQ = (!isNaN(maxQRaw) && maxQRaw > 0) ? maxQRaw : null;
+        }
+
         buildInstance(currentQuestions, currentMode, timer, maxQ);
       }
 
-      function syncTimerRowVisibility() {
-        var mode = document.getElementById('modeSelect').value;
-        var row = document.getElementById('timerRow');
-        if (mode === 'EDIT') {
-          row.classList.add('d-none');
-        } else {
-          row.classList.remove('d-none');
+      function syncQuizSection() {
+        var mode   = document.getElementById('modeSelect').value;
+        var isQuiz     = mode === 'QUIZ';
+        var isEdit     = mode === 'EDIT';
+        var isPractice = mode === 'PRACTICE';
+        document.getElementById('practiceSettingsSection').classList.toggle('d-none', !isPractice);
+        document.getElementById('quizSettingsSection').classList.toggle('d-none', !isQuiz);
+        document.getElementById('jsonEditorSection').classList.toggle('d-none', !isEdit);
+        document.getElementById('jsonBtns').classList.toggle('d-none', !isEdit);
+        // update max hint
+        if (isPractice) {
+          var inp = document.getElementById('practiceMaxQInput');
+          inp.max = currentQuestions.length;
+          inp.placeholder = 'all (' + currentQuestions.length + ')';
+          document.getElementById('practiceMaxQHint').textContent = '(max ' + currentQuestions.length + ')';
+        }
+        if (isQuiz) {
+          var qInp = document.getElementById('maxQInput');
+          qInp.max = currentQuestions.length;
+          qInp.placeholder = 'all (' + currentQuestions.length + ')';
+          var hint = document.getElementById('quizMaxQHint');
+          if (hint) hint.textContent = '(max ' + currentQuestions.length + ')';
         }
       }
 
-      // ── Options offcanvas ──────────────────────────────────────────────────
+      // ── Options modal ──────────────────────────────────────────────────────
 
-      var offcanvasEl  = document.getElementById('optionsOffcanvas');
+      var modalEl      = document.getElementById('optionsModal');
       var jsonArea     = document.getElementById('questionsJsonArea');
       var jsonErrorMsg = document.getElementById('jsonErrorMsg');
 
-      offcanvasEl.addEventListener('show.bs.offcanvas', function() {
+      modalEl.addEventListener('show.bs.modal', function() {
         jsonArea.value = JSON.stringify(currentQuestions, null, 2);
         jsonErrorMsg.classList.add('d-none');
         jsonErrorMsg.textContent = '';
+        syncQuizSection();
       });
 
       document.getElementById('loadJsonBtn').addEventListener('click', function() {
@@ -194,16 +305,11 @@
           jsonErrorMsg.classList.remove('d-none');
           return;
         }
-
         currentQuestions = parsed;
-
-        var timer = parseInt(document.getElementById('timerInput').value) || 0;
-        var maxQRaw = parseInt(document.getElementById('maxQInput').value);
-        var maxQ = isNaN(maxQRaw) ? null : maxQRaw;
-        buildInstance(currentQuestions, currentMode, timer, maxQ);
-
-        bootstrap.Offcanvas.getInstance(offcanvasEl).hide();
-        showAlert('Questions loaded successfully.', 'success');
+        currentMode = document.getElementById('modeSelect').value;
+        applyMode();
+        bootstrap.Modal.getInstance(modalEl).hide();
+        showAlert((pageStrings[currentLocale] || pageStrings.en).loadSuccess, 'success');
       });
 
       document.getElementById('resetJsonBtn').addEventListener('click', function() {
@@ -211,15 +317,45 @@
         jsonErrorMsg.classList.add('d-none');
       });
 
+      document.getElementById('optionsApplyBtn').addEventListener('click', function() {
+        var mode = document.getElementById('modeSelect').value;
+        if (mode === 'QUIZ') {
+          var timerVal = document.getElementById('timerInput').value;
+          var maxQVal  = document.getElementById('maxQInput').value;
+          var timerNum = parseInt(timerVal);
+          var maxQNum  = parseInt(maxQVal);
+          if (timerVal !== '' && (!Number.isInteger(timerNum) || timerNum <= 0)) {
+            showAlert('Timer must be at least 1 second.', 'danger'); return;
+          }
+          if (maxQVal !== '' && (!Number.isInteger(maxQNum) || maxQNum <= 0)) {
+            showAlert('Max Questions must be at least 1.', 'danger'); return;
+          }
+        }
+        if (mode === 'PRACTICE') {
+          var pVal = document.getElementById('practiceMaxQInput').value;
+          var pNum = parseInt(pVal);
+          if (pVal !== '' && (!Number.isInteger(pNum) || pNum <= 0)) {
+            showAlert('Questions to show must be at least 1.', 'danger'); return;
+          }
+        }
+        bootstrap.Modal.getInstance(modalEl).hide();
+        applyMode();
+      });
+
       // ── Wire up navbar controls ────────────────────────────────────────────
 
       document.getElementById('modeSelect').addEventListener('change', function() {
-        syncTimerRowVisibility();
+        syncQuizSection();
         currentMode = document.getElementById('modeSelect').value;
         applyMode();
       });
 
-      document.getElementById('applyBtn').addEventListener('click', applyMode);
+      // Language toggle
+      document.getElementById('langSelect').addEventListener('change', function() {
+        currentLocale = this.value;
+        applyPageLocale(currentLocale);
+        applyMode();
+      });
 
       // ── Bootstrap ─────────────────────────────────────────────────────────
 
@@ -233,7 +369,7 @@
         if (paramMode && ['PRACTICE', 'QUIZ', 'EDIT'].includes(paramMode)) {
           currentMode = paramMode;
           document.getElementById('modeSelect').value = paramMode;
-          syncTimerRowVisibility();
+          syncQuizSection();
         }
 
         if (paramTimer > 0) {
@@ -243,13 +379,21 @@
         try {
           var res = await fetch('./data/questions.json');
           if (!res.ok) throw new Error('Network response was not ok');
-          currentQuestions = await res.json();
+          var externalQuestions = (await res.json()).map(function(q) {
+            return Object.assign({}, q, { _source: 'external' });
+          });
+          var userQuestions = (function() {
+            try { return JSON.parse(localStorage.getItem('practiceJs_userQuestions')) || []; }
+            catch(e) { return []; }
+          })();
+          currentQuestions = externalQuestions.concat(userQuestions);
+          document.getElementById('maxQInput').placeholder = currentQuestions.length;
         } catch (e) {
-          showAlert('Failed to load questions: ' + e.message, 'danger');
+          showAlert((pageStrings[currentLocale] || pageStrings.en).loadFail + e.message, 'danger');
           currentQuestions = [];
         }
 
-        syncTimerRowVisibility();
+        syncQuizSection();
         var pm = buildInstance(currentQuestions, currentMode, paramTimer, null);
 
         // Apply editable param after instance is built (buildInstance already handles EDIT mode,

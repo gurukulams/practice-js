@@ -463,9 +463,9 @@ test.describe('QUIZ mode', () => {
 
   test('timer visible when timer param set', async ({ page }) => {
     await loadQuizPage(page, '&timer=60');
+    // timer is hidden during quiz, shown on result screen after submit
     const timerEl = page.locator('#quizTimer');
-    await expect(timerEl).not.toHaveClass(/d-none/);
-    await expect(timerEl).toContainText(/⏱ \d{2}:\d{2}/);
+    await expect(timerEl).toHaveClass(/d-none/);
   });
 
   test('submit shows result grid', async ({ page }) => {
@@ -530,7 +530,7 @@ test.describe('QUIZ mode', () => {
 
 test.describe('Question counter', () => {
   test('shows Q 1 / N on first question', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/?mode=QUIZ');
     await page.waitForSelector('#content:not(.d-none)');
     await page.waitForFunction(() => window.__prakticeMaker?.questions?.length > 0);
 
@@ -541,7 +541,7 @@ test.describe('Question counter', () => {
   });
 
   test('counter updates on next navigation', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/?mode=QUIZ');
     await page.waitForSelector('#content:not(.d-none)');
     await page.waitForFunction(() => window.__prakticeMaker?.questions?.length > 0);
 
@@ -554,7 +554,7 @@ test.describe('Question counter', () => {
   });
 
   test('counter updates on previous navigation', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/?mode=QUIZ');
     await page.waitForSelector('#content:not(.d-none)');
     await page.waitForFunction(() => window.__prakticeMaker?.questions?.length > 0);
 
@@ -747,7 +747,7 @@ test.describe('Max questions cap', () => {
       const root = document.getElementById('practice-main');
       root.innerHTML = '';
       const opts = { mode: 'PRACTICE', error: () => {} };
-      const pm = new PracticeMaker(root, opts);
+      const pm = new PracticeMaker.default(root, opts);
       pm.setEditable(false);
       // Use questions already loaded
       pm.setQuestions(window.__prakticeMaker.questions.slice());
@@ -769,8 +769,8 @@ test.describe('Max questions cap', () => {
       const root = document.getElementById('practice-main');
       if (window.__prakticeMaker?.destroy) window.__prakticeMaker.destroy();
       root.innerHTML = '';
-      const opts = { mode: 'PRACTICE', error: () => {} };
-      const pm = new PracticeMaker(root, opts);
+      const opts = { mode: 'QUIZ', error: () => {} };
+      const pm = new PracticeMaker.default(root, opts);
       pm.setEditable(false);
       pm.setQuestions(qs.slice(0, 2));
       window.__prakticeMaker = pm;

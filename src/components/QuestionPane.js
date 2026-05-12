@@ -1,5 +1,5 @@
 import ChoiceList from "./ChoiceList";
-import EasyMDE from "easymde";
+import { marked } from "marked";
 // Use the pre-compiled .mjs file for best compatibility with Rollup
 import renderMathInElement from 'katex/dist/contrib/auto-render.mjs';
 
@@ -13,8 +13,6 @@ export default class QuestionPane {
     this.questionContainer = document.getElementById("questionContainer");
     this.matcheContainer = document.getElementById("matcheContainer");
     this.explanationContainer = document.getElementById("explanationContainer");
-
-    this.mdEditor = new EasyMDE({element: this.questionPane.querySelector("#qTxt")});
 
     this.readOnly = true;
 
@@ -60,10 +58,14 @@ export default class QuestionPane {
         answer = choices.join(",");
         break;
       case "TEXT_ANSWER":
-        answer = document.getElementById('textAnswerInput').value.trim();
+        answer = this.answerContainer.querySelector(`[data-qid="${this.question.id}"]`)
+          ? this.answerContainer.querySelector(`[data-qid="${this.question.id}"]`).value.trim()
+          : '';
         break;
       case "NUMBER_ANSWER":
-        answer = document.getElementById('numberAnswerInput').value.trim();
+        answer = this.answerContainer.querySelector(`[data-qid="${this.question.id}"]`)
+          ? this.answerContainer.querySelector(`[data-qid="${this.question.id}"]`).value.trim()
+          : '';
         break;
     }
 
@@ -78,7 +80,7 @@ export default class QuestionPane {
   setQuestion(_question) {
     this.question = _question;
 
-    this.questionContainer.innerHTML = this.mdEditor.markdown(_question.question);
+    this.questionContainer.innerHTML = marked(_question.question || '');
 
     renderMathInElement(this.questionContainer, {
       delimiters: [
@@ -87,7 +89,7 @@ export default class QuestionPane {
       ]
     });
 
-    this.explanationContainer.innerHTML = this.mdEditor.markdown(_question.explanation ? _question.explanation : "");
+    this.explanationContainer.innerHTML = marked(_question.explanation ? _question.explanation : "");
 
     renderMathInElement(this.explanationContainer, {
       delimiters: [
@@ -126,13 +128,20 @@ export default class QuestionPane {
           wrapper.name = _question.id;
           const label = document.createElement('label');
           label.className = 'form-label fw-semibold';
-          label.textContent = 'Your answer';
+          label.textContent = this.isEditable ? 'Correct Answer' : 'Your answer';
           const input = document.createElement('input');
           input.type = 'text';
           input.className = 'form-control form-control-lg';
           input.id = 'textAnswerInput';
-          input.placeholder = 'Type your answer...';
-          input.value = '';
+          input.dataset.qid = _question.id;
+          if (this.isEditable) {
+            input.value = _question.answer || '';
+            input.readOnly = true;
+            input.className += ' bg-light text-muted';
+          } else {
+            input.placeholder = 'Type your answer...';
+            input.value = '';
+          }
           wrapper.appendChild(label);
           wrapper.appendChild(input);
           this.answerContainer.appendChild(wrapper);
@@ -144,13 +153,20 @@ export default class QuestionPane {
           wrapper.name = _question.id;
           const label = document.createElement('label');
           label.className = 'form-label fw-semibold';
-          label.textContent = 'Your answer';
+          label.textContent = this.isEditable ? 'Correct Answer' : 'Your answer';
           const input = document.createElement('input');
           input.type = 'number';
           input.className = 'form-control form-control-lg';
           input.id = 'numberAnswerInput';
-          input.placeholder = 'Enter a number...';
-          input.value = '';
+          input.dataset.qid = _question.id;
+          if (this.isEditable) {
+            input.value = _question.answer != null ? _question.answer : '';
+            input.readOnly = true;
+            input.className += ' bg-light text-muted';
+          } else {
+            input.placeholder = 'Enter a number...';
+            input.value = '';
+          }
           wrapper.appendChild(label);
           wrapper.appendChild(input);
           this.answerContainer.appendChild(wrapper);
@@ -181,13 +197,22 @@ export default class QuestionPane {
     }
 
     if(_question.type === "MATCH_THE_FOLLOWING") {
-      this.matcheContainer.innerHTML = '';
+      this.matcheContainer.innerHTML = '<p class="text-muted small mb-1 fw-semibold">Match each item →</p>';
           this.matcheContainer.appendChild(this.mtfChoicesList.element);
           this.mtfChoicesList.element.querySelectorAll("li>span").forEach(element=> {
             element.parentElement.removeChild(element);
           })
           this.matcheContainer.classList.remove('d-none');
           this.questionContainer.classList.add('d-none');
+
+          // Add header above right (answer) list
+          const existingHdr = this.answerContainer.querySelector('.mtf-header');
+          if (!existingHdr) {
+            const hdr = document.createElement('p');
+            hdr.className = 'text-muted small mb-1 fw-semibold mtf-header';
+            hdr.textContent = '← Reorder to match';
+            this.answerContainer.insertBefore(hdr, this.mtfList.element);
+          }
 
           renderMathInElement(this.mtfList.element, {
             delimiters: [
@@ -225,21 +250,9 @@ export default class QuestionPane {
 
   set readOnly(flag) {
     this.isEditable = !flag;
-    if (flag) {
-      this.questionPane.querySelectorAll(".editor-toolbar")
-      .forEach((element) => element.classList.add("d-none"));
-      this.questionPane.querySelectorAll(".editor-statusbar")
-      .forEach((element) => element.classList.add("d-none"));
-    } else {
-      this.questionPane.querySelectorAll(".editor-toolbar")
-      .forEach((element) => element.classList.remove("d-none"));
-      this.questionPane.querySelectorAll(".editor-statusbar")
-      .forEach((element) => element.classList.remove("d-none"));
-    }
     if(this.question) {
       this.setQuestion(this.question)
     }
-    
   }
   
   doExplain(flag) {
