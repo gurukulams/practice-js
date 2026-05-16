@@ -440,8 +440,10 @@ test.describe('QUIZ mode', () => {
 
   test('navigation arrows visible in QUIZ mode', async ({ page }) => {
     await loadQuizPage(page);
-    const pagination = page.locator('#navPane .pagination');
-    await expect(pagination).not.toHaveClass(/d-none/);
+    const prevBtn = page.locator('#prevBtn');
+    const nextBtn = page.locator('#nextBtn');
+    await expect(prevBtn).toBeVisible();
+    await expect(nextBtn).toBeVisible();
   });
 
   test('submit button hidden on question 0 in QUIZ mode', async ({ page }) => {
@@ -463,9 +465,8 @@ test.describe('QUIZ mode', () => {
 
   test('timer visible when timer param set', async ({ page }) => {
     await loadQuizPage(page, '&timer=60');
-    // timer is hidden during quiz, shown on result screen after submit
     const timerEl = page.locator('#quizTimer');
-    await expect(timerEl).toHaveClass(/d-none/);
+    await expect(timerEl).not.toHaveClass(/d-none/);
   });
 
   test('submit shows result grid', async ({ page }) => {
@@ -787,18 +788,91 @@ test.describe('Max questions cap', () => {
   });
 
   test('buildInstance with maxQ > available passes all via UI', async ({ page }) => {
-    // Use URL param approach — load page and then apply via the applyBtn
-    await page.goto('/');
+    await page.goto('/?mode=QUIZ');
     await page.waitForFunction(() => window.__prakticeMaker?.questions?.length > 0);
 
     const available = await page.evaluate(() => window.__prakticeMaker.questions.length);
 
-    // Set maxQ to a very large number
+    // Open options modal, set maxQ, apply
+    await page.locator('#optionsModal').evaluate(el => el.style.display = 'block');
     await page.locator('#maxQInput').fill('9999');
-    await page.locator('#applyBtn').click();
+    await page.locator('#optionsApplyBtn').click();
     await page.waitForFunction(() => window.__prakticeMaker?.questions?.length > 0);
 
     const actual = await page.evaluate(() => window.__prakticeMaker.questions.length);
     expect(actual).toBe(available);
+  });
+});
+
+// ─── Storage adapter ──────────────────────────────────────────────────────────
+
+test.describe('Storage adapter', () => {
+  test('onQuestionCreated fires after save in EDIT mode', async ({ page }) => {
+    await page.goto('/');
+    const created = await page.evaluate(async () => {
+      const { saveUserQuestion, configureStorage } = await import('/practice.esm.js');
+      window.__createdQ = null;
+      configureStorage({
+        type: 'local',
+        onQuestionCreated: (q) => { window.__createdQ = q; },
+      });
+      const q = { id: 'test_' + Date.now(), type: 'TEXT_ANSWER', question: 'Q?', answer: 'A', _source: 'user' };
+      await saveUserQuestion(q);
+      return window.__createdQ;
+    });
+    expect(created).not.toBeNull();
+    expect(created.id).toMatch(/^test_/);
+  });
+
+  test('onQuestionUpdated fires when saving existing question', async ({ page }) => {
+    await page.goto('/');
+    const result = await page.evaluate(async () => {
+      const { saveUserQuestion, configureStorage } = await import('/practice.esm.js');
+      let updatedQ = null;
+      const id = 'update_test_' + Date.now();
+      configureStorage({ type: 'local', onQuestionCreated: () => {} });
+      await saveUserQuestion({ id, type: 'TEXT_ANSWER', question: 'Q?', answer: 'A', _source: 'user' });
+      configureStorage({ type: 'local', onQuestionUpdated: (q) => { updatedQ = q; } });
+      await saveUserQuestion({ id, type: 'TEXT_ANSWER', question: 'Q updated', answer: 'A', _source: 'user' });
+      return updatedQ;
+    });
+    expect(result).not.toBeNull();
+    expect(result.question).toBe('Q updated');
+  });
+
+  test('onQuestionDeleted fires after delete', async ({ page }) => {
+    await page.goto('/');
+    const deletedId = await page.evaluate(async () => {
+      const { saveUserQuestion, deleteUserQuestion, configureStorage } = await import('/practice.esm.js');
+      const id = 'delete_test_' + Date.now();
+      configureStorage({ type: 'local' });
+      await saveUserQuestion({ id, type: 'TEXT_ANSWER', question: 'Q?', answer: 'A', _source: 'user' });
+      let deletedId = null;
+      configureStorage({ type: 'local', onQuestionDeleted: (id) => { deletedId = id; } });
+      await deleteUserQuestion(id);
+      return deletedId;
+    });
+    expect(deletedId).toMatch(/^delete_test_/);
+  });
+
+  test('localStorage not written when type=server', async ({ page }) => {
+    await page.goto('/');
+    const result = await page.evaluate(async () => {
+      const { saveUserQuestion, configureStorage } = await import('/practice.esm.js');
+      window.__fetchCalled = false;
+      const origFetch = window.fetch;
+      window.fetch = async (url, opts) => {
+        window.__fetchCalled = true;
+        return { ok: true, json: async () => ({ id: 'srv1', type: 'TEXT_ANSWER', question: 'Q', answer: 'A', _source: 'user' }) };
+      };
+      configureStorage({ type: 'server', baseUrl: '/api' });
+      const lsBefore = localStorage.getItem('practiceJs_userQuestions');
+      await saveUserQuestion({ id: 'srv1', type: 'TEXT_ANSWER', question: 'Q', answer: 'A', _source: 'user' });
+      const lsAfter = localStorage.getItem('practiceJs_userQuestions');
+      window.fetch = origFetch;
+      return { fetchCalled: window.__fetchCalled, lsChanged: lsBefore !== lsAfter };
+    });
+    expect(result.fetchCalled).toBe(true);
+    expect(result.lsChanged).toBe(false);
   });
 });

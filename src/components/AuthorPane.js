@@ -476,10 +476,15 @@ export default class AuthorPane {
 
   // ── Save / destroy ────────────────────────────────────────────────────────
 
-  _save() {
+  async _save() {
     const q = this._buildQuestion();
     if (!q) return;
-    saveUserQuestion(q);
+    try {
+      await saveUserQuestion(q);
+    } catch (e) {
+      alert('Failed to save question: ' + e.message);
+      return;
+    }
     this._destroyEditors();
     this.onSave(q);
   }

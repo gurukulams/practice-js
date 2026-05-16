@@ -1,9 +1,9 @@
 import QuestionPane from "./components/QuestionPane";
 import AuthorPane from "./components/AuthorPane";
 import { t } from "./i18n";
-import { loadUserQuestions, saveUserQuestion, deleteUserQuestion } from "./storage";
+import { loadUserQuestions, saveUserQuestion, deleteUserQuestion, configureStorage } from "./storage";
 
-export { loadUserQuestions, saveUserQuestion, deleteUserQuestion };
+export { loadUserQuestions, saveUserQuestion, deleteUserQuestion, configureStorage };
 
 export default class PracticeMaker {
   constructor(_contentRoot, _notiFyFn) {
@@ -11,6 +11,7 @@ export default class PracticeMaker {
     this.mode = (_notiFyFn && _notiFyFn.mode) ? _notiFyFn.mode : 'PRACTICE';
     this.timer = (_notiFyFn && _notiFyFn.timer) ? _notiFyFn.timer : null;
     this.locale = (_notiFyFn && _notiFyFn.locale) ? _notiFyFn.locale : 'en';
+    configureStorage(_notiFyFn && _notiFyFn.storage ? _notiFyFn.storage : { type: 'local' });
     const L = (key) => t(this.locale, key);
     _contentRoot.innerHTML = `
                 <div id="content" class="d-none" data-type="question">
@@ -21,6 +22,12 @@ export default class PracticeMaker {
                     </div>
                   </div>
                   <div id="editControls" class="d-none d-flex align-items-center gap-2 me-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="editEditNavBtn" title="Edit current question">
+                      <i class="bi bi-pencil"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" id="editDeleteNavBtn" title="Delete current question">
+                      <i class="bi bi-trash"></i>
+                    </button>
                     <button type="button" class="btn btn-sm btn-outline-primary" id="editAddNavBtn">
                       <i class="bi bi-plus me-1"></i>Add
                     </button>
@@ -105,6 +112,7 @@ export default class PracticeMaker {
 
     // Notes toggle
     document.getElementById('notesToggleBtn').addEventListener('click', () => {
+      document.getElementById('notesBody').classList.toggle('d-none');
     });
 
     // Auto-save notes on input
@@ -146,17 +154,18 @@ export default class PracticeMaker {
       document.getElementById("notfound").classList.add("d-none");
 
       let startIndex = 0;
-      if (this.mode === 'EDIT') {
-        const hash = window.location.hash;
-        const idFromHash = hash.replace('#', '');
-        const index = idFromHash ? this.questions.findIndex(q => q.id === idFromHash) : -1;
-        startIndex = index !== -1 ? index : 0;
+      const hash = window.location.hash;
+      const idFromHash = hash.replace('#', '');
+      if (idFromHash) {
+        const index = this.questions.findIndex(q => q.id === idFromHash);
+        if (index !== -1) startIndex = index;
       }
 
       this.setQuestion(startIndex);
       document.getElementById("content").classList.remove("d-none");
 
       if (this.mode === 'EDIT') {
+        history.replaceState(null, '', window.location.pathname + window.location.search);
         document.getElementById('editControls').classList.remove('d-none');
         document.getElementById('editControls').classList.add('d-flex');
         this._updateEditBtn();
@@ -241,6 +250,7 @@ export default class PracticeMaker {
   }
 
   setQuestionParameter() {
+    if (this.mode === 'EDIT') return;
     window.location.hash = this.questions[this.currentQuestionIndex].id;
   }
 
@@ -432,6 +442,30 @@ export default class PracticeMaker {
       document.getElementById('editCounter').classList.remove('d-none');
       document.getElementById('editAddNavBtn').addEventListener('click', () => this.showAuthorPane(null));
       document.getElementById('editEmptyAddBtn').addEventListener('click', () => this.showAuthorPane(null));
+      document.getElementById('editEditNavBtn').addEventListener('click', () => {
+        const q = this.questions[this.currentQuestionIndex];
+        if (q && q._source === 'user') this.showAuthorPane(q);
+      });
+      document.getElementById('editDeleteNavBtn').addEventListener('click', async () => {
+        const q = this.questions[this.currentQuestionIndex];
+        if (!q || q._source !== 'user') return;
+        if (!confirm(`Delete "${q.question.slice(0, 60)}"?`)) return;
+        try {
+          await deleteUserQuestion(q.id);
+        } catch (e) {
+          alert('Failed to delete: ' + e.message);
+          return;
+        }
+        this.questions.splice(this.currentQuestionIndex, 1);
+        if (this.questions.length === 0) {
+          document.getElementById('content').classList.add('d-none');
+          document.getElementById('editEmptyState').classList.remove('d-none');
+        } else {
+          const nextIndex = Math.min(this.currentQuestionIndex, this.questions.length - 1);
+          this.setQuestion(nextIndex);
+          this._updateEditBtn();
+        }
+      });
       document.getElementById('questionPane').addEventListener('dblclick', () => {
         const q = this.questions[this.currentQuestionIndex];
         if (q && q._source === 'user') this.showAuthorPane(q);
@@ -444,6 +478,12 @@ export default class PracticeMaker {
     if (counter) counter.textContent = `${this.currentQuestionIndex + 1} / ${this.questions.length}`;
     if (this.prevBtn) this.prevBtn.disabled = this.currentQuestionIndex === 0;
     if (this.nextBtn) this.nextBtn.disabled = this.currentQuestionIndex === this.questions.length - 1;
+    const q = this.questions[this.currentQuestionIndex];
+    const isUser = !!(q && q._source === 'user');
+    const editBtn = document.getElementById('editEditNavBtn');
+    if (editBtn) editBtn.disabled = !isUser;
+    const deleteBtn = document.getElementById('editDeleteNavBtn');
+    if (deleteBtn) deleteBtn.disabled = !isUser;
   }
 
   showAuthorPane(question) {

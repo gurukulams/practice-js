@@ -83,6 +83,22 @@
               </div>
             </div>
 
+            <!-- Storage settings — always visible -->
+            <div id="storageSettingsSection">
+              <h6 class="fw-semibold mb-3"><i class="bi bi-cloud me-2"></i>Storage</h6>
+              <div class="d-flex align-items-center gap-2 mb-2">
+                <div class="form-check form-switch mb-0">
+                  <input class="form-check-input" type="checkbox" role="switch" id="serverModeToggle">
+                  <label class="form-check-label fw-semibold small" for="serverModeToggle">Use server</label>
+                </div>
+              </div>
+              <div id="serverUrlRow" class="d-none">
+                <label class="form-label small text-muted" for="serverUrlInput">Server URL</label>
+                <input type="url" class="form-control form-control-sm" id="serverUrlInput" placeholder="http://localhost:8080">
+                <div class="form-text">Questions will be saved to and loaded from this server.</div>
+              </div>
+            </div>
+
             <!-- JSON editor — visible only in EDIT mode -->
             <div id="jsonEditorSection" class="d-none">
               <p class="text-muted small mb-0">Edit the JSON below and click <strong>Load</strong> to apply changes. This updates the current session only.</p>
@@ -211,10 +227,28 @@
             ? questions.slice(0, maxQ)
             : questions;
 
+        var storageBase = getStorageConfig();
         var opts = {
           mode: mode,
           locale: currentLocale,
-          error: function(msg) { showAlert(msg, 'danger'); }
+          error: function(msg) { showAlert(msg, 'danger'); },
+          storage: Object.assign({}, storageBase, {
+            onQuestionCreated: function(q) {
+              console.log('[storage] created', q.id);
+              if (!currentQuestions.some(function(x) { return x.id === q.id; })) {
+                currentQuestions.push(q);
+              }
+            },
+            onQuestionUpdated: function(q) {
+              console.log('[storage] updated', q.id);
+              var idx = currentQuestions.findIndex(function(x) { return x.id === q.id; });
+              if (idx >= 0) currentQuestions[idx] = q;
+            },
+            onQuestionDeleted: function(id) {
+              console.log('[storage] deleted', id);
+              currentQuestions = currentQuestions.filter(function(x) { return x.id !== id; });
+            },
+          })
         };
 
         if (mode === 'QUIZ' && timer && timer > 0) {
@@ -281,6 +315,27 @@
         }
       }
 
+      // ── Storage config helpers ─────────────────────────────────────────────
+
+      var STORAGE_SERVER_KEY = 'practiceJs_serverUrl';
+
+      function getStorageConfig() {
+        var url = localStorage.getItem(STORAGE_SERVER_KEY) || '';
+        return url ? { type: 'server', baseUrl: url } : { type: 'local' };
+      }
+
+      function syncStorageToggle() {
+        var url = localStorage.getItem(STORAGE_SERVER_KEY) || '';
+        document.getElementById('serverModeToggle').checked = !!url;
+        document.getElementById('serverUrlInput').value = url;
+        document.getElementById('serverUrlRow').classList.toggle('d-none', !url);
+      }
+
+      document.getElementById('serverModeToggle').addEventListener('change', function() {
+        document.getElementById('serverUrlRow').classList.toggle('d-none', !this.checked);
+        if (!this.checked) document.getElementById('serverUrlInput').value = '';
+      });
+
       // ── Options modal ──────────────────────────────────────────────────────
 
       var modalEl      = document.getElementById('optionsModal');
@@ -292,6 +347,7 @@
         jsonErrorMsg.classList.add('d-none');
         jsonErrorMsg.textContent = '';
         syncQuizSection();
+        syncStorageToggle();
       });
 
       document.getElementById('loadJsonBtn').addEventListener('click', function() {
@@ -338,6 +394,18 @@
             showAlert('Questions to show must be at least 1.', 'danger'); return;
           }
         }
+        // Save server storage config
+        var useServer = document.getElementById('serverModeToggle').checked;
+        var serverUrl = document.getElementById('serverUrlInput').value.trim();
+        if (useServer && !serverUrl) {
+          showAlert('Enter a server URL or disable server mode.', 'danger'); return;
+        }
+        if (useServer) {
+          localStorage.setItem(STORAGE_SERVER_KEY, serverUrl);
+        } else {
+          localStorage.removeItem(STORAGE_SERVER_KEY);
+        }
+
         bootstrap.Modal.getInstance(modalEl).hide();
         applyMode();
       });
@@ -382,10 +450,8 @@
           var externalQuestions = (await res.json()).map(function(q) {
             return Object.assign({}, q, { _source: 'external' });
           });
-          var userQuestions = (function() {
-            try { return JSON.parse(localStorage.getItem('practiceJs_userQuestions')) || []; }
-            catch(e) { return []; }
-          })();
+          PracticeMaker.configureStorage(getStorageConfig());
+          var userQuestions = await PracticeMaker.loadUserQuestions();
           currentQuestions = externalQuestions.concat(userQuestions);
           document.getElementById('maxQInput').placeholder = currentQuestions.length;
         } catch (e) {
@@ -403,7 +469,7 @@
         }
       }
 
-      init();
+      init().catch(console.error);
     </script>
   </body>
 </html>
