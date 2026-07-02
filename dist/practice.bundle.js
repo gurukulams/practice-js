@@ -16860,7 +16860,7 @@
     }
 
     get answer() {
-      this.reset();
+      // this.reset();
 
       const answers = [];
       if (this.isMatches) {
