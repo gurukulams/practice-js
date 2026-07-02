@@ -39967,7 +39967,6 @@ const translations = {
     submitQuiz:         'Submit Quiz',
     noQuestions:        'There are no questions',
     goBack:             'Go Back',
-    myNotes:            'My Notes',
     notesPlaceholder:   'Write your personal notes here...',
     quizComplete:       'Quiz Complete — Score:',
     timeUsed:           '⏱ Time used:',
@@ -40000,7 +39999,6 @@ const translations = {
     submitQuiz:         'வினாடி வினா சமர்ப்பி',
     noQuestions:        'கேள்விகள் இல்லை',
     goBack:             'திரும்பு',
-    myNotes:            'என் குறிப்புகள்',
     notesPlaceholder:   'இங்கே உங்கள் தனிப்பட்ட குறிப்புகளை எழுதுங்கள்...',
     quizComplete:       'வினாடி வினா முடிந்தது — மதிப்பெண்:',
     timeUsed:           '⏱ பயன்படுத்திய நேரம்:',
@@ -40062,14 +40060,7 @@ class PracticeMaker {
                     <div class="form-floating mb-3 h-100" id="answerContainer"></div>
                   </div>
               </div>
-              <div id="notesPanel" class="mt-3 px-1 col-12 col-md-6">
-                <button class="btn btn-sm btn-outline-secondary" type="button" id="notesToggleBtn">
-                  <i class="bi bi-journal-text me-1"></i>${L('myNotes')}
-                </button>
-                <div id="notesBody" class="d-none mt-2">
-                  <textarea id="notesTextarea" class="form-control font-monospace" rows="4" placeholder="${L('notesPlaceholder')}"></textarea>
-                </div>
-              </div>
+              
             </div>
             <div id="notfound" class="row d-none">
               <div class="d-flex align-items-center justify-content-center">
@@ -40120,15 +40111,7 @@ class PracticeMaker {
     };
     document.addEventListener('keydown', this._keyHandler);
 
-    // Notes toggle
-    document.getElementById('notesToggleBtn').addEventListener('click', () => {
-    });
 
-    // Auto-save notes on input
-    document.getElementById('notesTextarea').addEventListener('input', () => {
-      const q = this.questionPane.getQuestion();
-      if (q) localStorage.setItem(`practiceJs_note_${q.id}`, document.getElementById('notesTextarea').value);
-    });
 
   }
 
