@@ -20,6 +20,7 @@
       },
       {
         "label": "Inheritance",
+        "image": "/inheritance.png",
         "answer": true,
         "id": "cse/languages/java//ooad-q1-c3",
         "questionId": "cse/languages/java//ooad-q1"

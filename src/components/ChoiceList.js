@@ -127,7 +127,12 @@ export default class ChoiceList {
         input.id = choice.id;
         const clabel = liEl.querySelector("label");
         clabel.htmlFor = choice.id;
-        clabel.querySelector("span").textContent = choice.label || choice.choice || '';
+        if(choice.image) {
+          clabel.querySelector("span").innerHTML = `<img src="${choice.image}" class="img-fluid" alt="${choice.label}">`
+        } else {
+          clabel.querySelector("span").textContent = choice.label || choice.choice || '';
+        }
+        
 
         renderMathInElement(clabel.querySelector("span"), {
           delimiters: [
