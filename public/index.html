@@ -66,6 +66,14 @@
                 <label class="form-label fw-semibold small" for="practiceMaxQInput">Questions to show <span class="text-muted fw-normal" id="practiceMaxQHint"></span></label>
                 <input type="number" class="form-control form-control-sm" id="practiceMaxQInput" min="1">
               </div>
+              <div style="max-width:160px">
+                <label class="form-label fw-semibold small" for="complexityCmb">Complexity<span class="text-muted fw-normal" id="practiceMaxQHint"></span></label>
+                <select id="complexityCmb" class="form-select" aria-label="Default select example">
+                  <option value="">Low</option>
+                  <option value="M">Medium</option>
+                  <option value="H">High</option>
+                </select>
+              </div>
             </div>
 
             <!-- Quiz settings — visible only in QUIZ mode -->
@@ -195,7 +203,7 @@
 
       // ── Build a fresh PracticeMaker ────────────────────────────────────────
 
-      function buildInstance(questions, mode, timer, maxQ) {
+      function buildInstance(questions, mode, timer, maxQ, complexity) {
         var root = document.getElementById('practice-main');
 
         // destroy previous instance to clear any running timers
@@ -213,6 +221,7 @@
 
         var opts = {
           mode: mode,
+          complexity: complexity,
           locale: currentLocale,
           error: function(msg) { showAlert(msg, 'danger'); }
         };
@@ -239,7 +248,11 @@
 
       function applyMode() {
         currentMode = document.getElementById('modeSelect').value;
-        var timer = 0, maxQ = null;
+        var timer = 0, maxQ = null, complexity = null;
+
+        if(document.getElementById("complexityCmb").value.trim() !== "") {
+          complexity = document.getElementById("complexityCmb").value;
+        }
 
         if (currentMode === 'PRACTICE') {
           var raw = parseInt(document.getElementById('practiceMaxQInput').value);
@@ -253,7 +266,7 @@
           maxQ = (!isNaN(maxQRaw) && maxQRaw > 0) ? maxQRaw : null;
         }
 
-        buildInstance(currentQuestions, currentMode, timer, maxQ);
+        buildInstance(currentQuestions, currentMode, timer, maxQ, complexity);
       }
 
       function syncQuizSection() {
@@ -394,7 +407,7 @@
         }
 
         syncQuizSection();
-        var pm = buildInstance(currentQuestions, currentMode, paramTimer, null);
+        var pm = buildInstance(currentQuestions, currentMode, paramTimer, null, null);
 
         // Apply editable param after instance is built (buildInstance already handles EDIT mode,
         // but an explicit ?editable=1 should also enable edit badge in PRACTICE/QUIZ modes)

@@ -107,6 +107,7 @@
     "explanation": "#### The `class` keyword is used to define a class. Example: `public class MyClass {}`",
     "answer": "class",
     "type": "TEXT_ANSWER",
+    "complexity": "H",
     "id": "cse/languages/java//text-q0"
   },
   {
@@ -114,6 +115,7 @@
     "explanation": "#### A byte consists of 8 bits. Fundamental unit in computing.",
     "answer": 8,
     "type": "NUMBER_ANSWER",
+    "complexity": "M",
     "id": "cse/languages/java//number-q0"
   }
 ]

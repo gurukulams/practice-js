@@ -40035,6 +40035,7 @@
     constructor(_contentRoot, _notiFyFn) {
       this.notiFyFn = _notiFyFn;
       this.mode = (_notiFyFn && _notiFyFn.mode) ? _notiFyFn.mode : 'PRACTICE';
+      this.complexity = (_notiFyFn && _notiFyFn.complexity) ? _notiFyFn.complexity:null;
       this.timer = (_notiFyFn && _notiFyFn.timer) ? _notiFyFn.timer : null;
       this.locale = (_notiFyFn && _notiFyFn.locale) ? _notiFyFn.locale : 'en';
       const L = (key) => t(this.locale, key);
@@ -40135,7 +40136,36 @@
     }
 
     setQuestions(_questions) {
-      this.questions = this.shuffle(_questions);
+      
+      console.log('COmplexity is ' + this.complexity);
+
+      /**
+       * Filters a list of questions based on a target complexity level.
+       * 
+       * @param {Array} questions - The list of question objects to filter.
+       * @param {string|null} targetComplexity - The complexity level ("H", "M", or null).
+       * @returns {Array} The filtered subset of questions.
+       */
+      function filterQuestionsByComplexity(questions, targetComplexity) {
+        if (!questions || !Array.isArray(questions)) return [];
+
+        return questions.filter(q => {
+          // If complexity is H: Do not filter (include everything)
+          if (targetComplexity === "H") {
+            return true;
+          }
+          
+          // If complexity is M: Include questions with NO complexity + "M"
+          if (targetComplexity === "M") {
+            return !q.complexity || q.complexity === "M";
+          }
+          
+          // If complexity is null: Include ONLY questions that do not have complexity
+          return !q.complexity;
+        });
+      }
+
+      this.questions = this.shuffle(filterQuestionsByComplexity(_questions,this.complexity));
       this.originalQuestions = JSON.parse(JSON.stringify(_questions));
       this.currentQuestionIndex = 0;
       this.userAnswers = {};
