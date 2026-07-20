@@ -40026,12 +40026,12 @@ function t(locale, key) {
 }
 
 class PracticeMaker {
-  constructor(_contentRoot, _notiFyFn) {
-    this.notiFyFn = _notiFyFn;
-    this.mode = (_notiFyFn && _notiFyFn.mode) ? _notiFyFn.mode : 'PRACTICE';
-    this.complexity = (_notiFyFn && _notiFyFn.complexity) ? _notiFyFn.complexity:null;
-    this.timer = (_notiFyFn && _notiFyFn.timer) ? _notiFyFn.timer : null;
-    this.locale = (_notiFyFn && _notiFyFn.locale) ? _notiFyFn.locale : 'en';
+  constructor(_contentRoot, _options) {
+    this.options = _options;
+    this.mode = (_options && _options.mode) ? _options.mode : 'PRACTICE';
+    this.complexity = (_options && _options.complexity) ? _options.complexity:null;
+    this.timer = (_options && _options.timer) ? _options.timer : null;
+    this.locale = (_options && _options.locale) ? _options.locale : 'en';
     const L = (key) => t(this.locale, key);
     _contentRoot.innerHTML = `
                 <div id="content" class="d-none" data-type="question">
@@ -40376,7 +40376,7 @@ class PracticeMaker {
     const answerText = this.questionPane.getAnswer();
 
     if (answerText === "" && !silentMode) {
-      this.notiFyFn.error(t(this.locale, 'pleaseAnswer'));
+      this.options.error(t(this.locale, 'pleaseAnswer'));
       return false;
     }
 
