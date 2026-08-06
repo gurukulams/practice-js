@@ -40040,74 +40040,150 @@
       this.locale = (_options && _options.locale) ? _options.locale : 'en';
       const L = (key) => t(this.locale, key);
       _contentRoot.innerHTML = `
-                <div id="content" class="d-none" data-type="question">
-              <div id="navPane" class="d-flex align-items-center">
-                  <div class="flex-grow-1">
-                    <div class="d-flex align-items-center gap-1">
-                      <span id="editModeBadge" class="badge bg-warning text-dark d-none">${L('editModeBadge')}</span>
-                    </div>
-                  </div>
-                  <div id="editControls" class="d-none d-flex align-items-center gap-2 me-2">
-                    <button type="button" class="btn btn-sm btn-outline-primary" id="editAddNavBtn">
-                      <i class="bi bi-plus me-1"></i>Add
-                    </button>
-                  </div>
-                  <div id="quizTimer" class="d-none fw-bold fs-5 align-self-center me-3"></div>
-                  <div id="questionCounter" class="d-none fw-semibold text-muted align-self-center me-2"></div>
-                  <div>
-                    <button type="button" class="btn d-none px-2 mx-2 text-white border-dark-subtle" data-bs-toggle="tooltip"
-                        data-bs-placement="bottom" title="Explain">
-                        <span></span>
-                        <i class="bi bi-question"></i>
-                    </button>
-                  </div>
-              </div>
-              <div id="questionPane" class="row h-50">
-                  <div class="col-12 col-md-6">
-                      <span id="questionContainer" class="lead"></span>
-                    <div class="form-floating mb-3 h-100" id="matcheContainer"></div>
-                  </div>
-                  <div class="col-12 col-md-6">
-                      <span id="explanationContainer" class="d-none"></span>
-                    <div class="form-floating mb-3 h-100" id="answerContainer"></div>
-                  </div>
-              </div>
-              
-            </div>
-            <div id="notfound" class="row d-none">
-              <div class="d-flex align-items-center justify-content-center">
-                  <div class="text-center">
-                    <p class="fs-3">${L('noQuestions')}</p>
-                    <a href="/" class="btn btn-primary">${L('goBack')}</a>
-                  </div>
-              </div>
-            </div>
-            <div id="editEmptyState" class="d-none">
-              <div class="d-flex align-items-center justify-content-center" style="min-height:300px">
-                <div class="text-center text-muted">
-                  <i class="bi bi-journal-plus fs-1 mb-3 d-block"></i>
-                  <p class="fs-5 mb-3">No questions yet</p>
-                  <button type="button" class="btn btn-primary" id="editEmptyAddBtn">
-                    <i class="bi bi-plus me-1"></i>Add Question
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div id="authorContainer" class="d-none"></div>
-            <!-- Bottom action bar — outside #content so always visible -->
-            <div id="fabPane" class="position-fixed bottom-0 end-0 d-flex align-items-center gap-2 me-3 mb-4 z-3">
-              <button type="button" class="btn btn-outline-secondary" id="prevBtn" title="Previous Question" disabled>
-                <i class="bi bi-arrow-left"></i>
-              </button>
-              <span id="editCounter" class="text-muted small fw-semibold d-none"></span>
-              <button type="button" class="btn btn-primary" id="checkBtn" title="Check Question">
-                <i class="bi bi-check"></i> ${L('verifyBtn')}
-              </button>
-              <button id="quizSubmitBtn" type="button" class="btn btn-danger d-none">${L('submitQuiz')}</button>
-              <button type="button" class="btn btn-outline-secondary" id="nextBtn" title="Next Question">
-                <i class="bi bi-arrow-right"></i>
-              </button>
-            </div>
+    <div id="content" class="d-none" data-type="question">
+    <header
+       class="navbar navbar-expand-lg navbar-light border-bottom sticky-md-top bg-body py-2 shadow-sm inner-section-header"
+    >
+       <div class="d-flex align-items-center w-100">
+          <button
+             class="btn btn-link p-0 me-3"
+             type="button"
+             data-bs-toggle="offcanvas"
+             href="#offcanvasDocsTree"
+             role="button"
+             aria-controls="offcanvasDocsTree"
+          >
+             <i class="bi bi-bookmark fs-3"></i>
+          </button>
+          <div>
+             <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0 small text-muted"></ol>
+             </nav>
+             <h1 id="questionCounter" class="h5 mb-0 fw-bold"><span id="editModeBadge" class="badge bg-warning text-dark d-none"
+             >${L('editModeBadge')}</span
+          ></h1>
+          </div>
+          <ul
+             class="navbar-nav ms-auto d-flex flex-row justify-content-evenly justify-content-lg-end mt-lg-0 pb-lg-0"
+          >
+
+          <li class="nav-item">
+          <button
+             type="button"
+             class="btn d-none px-2 mx-2 text-white border-dark-subtle"
+             data-bs-toggle="tooltip"
+             data-bs-placement="bottom"
+             title="Explain"
+             id="explainToggleBtn"
+          >
+             <span></span>
+             <i class="bi bi-question"></i>
+          </button>
+          </li>
+
+             <li
+                class="nav-item d-none d-flex align-items-center position-relative px-1"
+                id="editControls"
+                style="padding-bottom: 6px"
+             >
+             
+             <button
+                type="button"
+                class="btn btn-sm btn-outline-primary border-0"
+                id="editAddNavBtn"
+             >
+                <i class="bi bi-plus fs-5"></i>
+             </button>
+
+             </li>
+             <li class="nav-item">
+                <button
+                id="prevBtn"
+                   class="btn btn-outline-secondary btn-sm border-0"
+                   disabled=""
+                   title="No previous page"
+                >
+                   <i class="bi bi-arrow-left fs-5"></i>
+                </button>
+             </li>
+             <li class="nav-item">
+             <button
+                id="nextBtn"
+                   class="btn btn-outline-secondary btn-sm border-0"
+                   disabled=""
+                   title="No Next page"
+                >
+                   <i class="bi bi-arrow-right fs-5"></i>
+                </button>
+             </li>
+          </ul>
+       </div>
+    </header>
+    <div id="navPane" class="d-flex align-items-center mt-2">
+       
+
+       <div
+          id="quizTimer"
+          class="d-none fw-bold fs-5 align-self-center me-3"
+       ></div>
+       
+
+    </div>
+    <div id="questionPane" class="row h-50">
+       <div class="col-12 col-md-6">
+          <span id="questionContainer" class="lead"></span>
+          <div class="form-floating mb-3 h-100" id="matcheContainer"></div>
+       </div>
+       <div class="col-12 col-md-6">
+          <span id="explanationContainer" class="d-none"></span>
+          <div class="form-floating mb-3 h-100" id="answerContainer"></div>
+       </div>
+    </div>
+ </div>
+ <div id="notfound" class="row d-none">
+    <div class="d-flex align-items-center justify-content-center">
+       <div class="text-center">
+          <p class="fs-3">${L('noQuestions')}</p>
+          <a href="/" class="btn btn-primary">${L('goBack')}</a>
+       </div>
+    </div>
+ </div>
+ <div id="editEmptyState" class="d-none">
+    <div
+       class="d-flex align-items-center justify-content-center"
+       style="min-height: 300px"
+    >
+       <div class="text-center text-muted">
+          <i class="bi bi-journal-plus fs-1 mb-3 d-block"></i>
+          <p class="fs-5 mb-3">No questions yet</p>
+          <button type="button" class="btn btn-primary" id="editEmptyAddBtn">
+             <i class="bi bi-plus me-1"></i>Add Question
+          </button>
+       </div>
+    </div>
+ </div>
+ <div id="authorContainer" class="d-none"></div>
+ 
+ <div
+    id="fabPane"
+    class="position-fixed bottom-0 end-0 d-flex align-items-center gap-2 me-3 mb-4 z-3"
+ >
+
+    <span id="editCounter" class="text-muted small fw-semibold d-none"></span>
+    <button
+       type="button"
+       class="btn btn-primary"
+       id="checkBtn"
+       title="Check Question"
+    >
+       <i class="bi bi-check"></i> ${L('verifyBtn')}
+    </button>
+    <button id="quizSubmitBtn" type="button" class="btn btn-danger d-none">
+       ${L('submitQuiz')}
+    </button>
+
+ </div>
+ 
             `;
       this.questionPane = new QuestionPane(this.shuffle);
       this.questionPane.readOnly = true;
@@ -40442,17 +40518,12 @@
     }
 
     addActions() {
-      const navPane = document.getElementById("navPane");
+      document.getElementById("navPane");
 
-      // Explain toggle (still in navPane)
-      navPane.querySelectorAll("i").forEach((element) => {
-        if (element.classList.contains("bi-question")) {
-          this.explainToggleBtn = element.parentElement;
-          this.explainToggleBtn.addEventListener("click", () =>
-            this.doExplain(!this.explainToggleBtn.classList.contains("btn-primary"))
-          );
-        }
-      });
+      this.explainToggleBtn = document.getElementById("explainToggleBtn");
+      this.explainToggleBtn.addEventListener("click", () =>
+        this.doExplain(!this.explainToggleBtn.classList.contains("btn-primary"))
+      );
 
       // Bottom bar buttons
       this.checkBtn   = document.getElementById('checkBtn');
@@ -40523,17 +40594,13 @@
         // Rebuild the original nav bar HTML (same as initial HTML in constructor)
         const L = (key) => t(this.locale, key);
         fabPane.innerHTML = `
-        <button type="button" class="btn btn-outline-secondary" id="prevBtn" title="Previous Question" disabled>
-          <i class="bi bi-arrow-left"></i>
-        </button>
+        
         <span id="editCounter" class="text-muted small fw-semibold"></span>
         <button type="button" class="btn btn-primary d-none" id="checkBtn" title="Check Question">
           <i class="bi bi-check"></i> ${L('verifyBtn')}
         </button>
         <button id="quizSubmitBtn" type="button" class="btn btn-danger d-none">${L('submitQuiz')}</button>
-        <button type="button" class="btn btn-outline-secondary" id="nextBtn" title="Next Question">
-          <i class="bi bi-arrow-right"></i>
-        </button>`;
+        `;
         // Re-bind button references and listeners
         this.prevBtn  = document.getElementById('prevBtn');
         this.nextBtn  = document.getElementById('nextBtn');
