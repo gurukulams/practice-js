@@ -19,21 +19,27 @@ export default class PracticeMaker {
        class="navbar navbar-expand-lg navbar-light border-bottom sticky-md-top bg-body py-2 shadow-sm inner-section-header"
     >
        <div class="d-flex align-items-center w-100">
-          <button
-             class="btn btn-link p-0 me-3"
-             type="button"
-             data-bs-toggle="offcanvas"
-             href="#offcanvasDocsTree"
-             role="button"
-             aria-controls="offcanvasDocsTree"
-          >
-             <i class="bi bi-bookmark fs-3"></i>
-          </button>
+          
+          <!-- NEW: Left-side Tags Container -->
+          <div id="headerTagsContainer" class="d-flex align-items-center gap-1 flex-wrap me-auto">
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill d-inline-flex align-items-center">
+              Neet
+              <i class="bi bi-x ms-1 fs-6 tag-remove-btn" role="button" aria-label="Remove tag" style="cursor: pointer;" onclick="this.parentElement.remove()"></i>
+          </span>
+          <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill d-inline-flex align-items-center">
+              JEE
+              <i class="bi bi-x ms-1 fs-6 tag-remove-btn" role="button" aria-label="Remove tag" style="cursor: pointer;" onclick="this.parentElement.remove()"></i>
+          </span>
+          <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill d-inline-flex align-items-center">
+              NATA
+              <i class="bi bi-x ms-1 fs-6 tag-remove-btn" role="button" aria-label="Remove tag" style="cursor: pointer;" onclick="this.parentElement.remove()"></i>
+          </span>
+      </div>
           <div>
              <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-0 small text-muted"></ol>
              </nav>
-             <h1 id="questionCounter" class="h5 mb-0 fw-bold"><span id="editModeBadge" class="badge bg-warning text-dark d-none"
+             <h1 class="h5 mb-0 fw-bold"><span id="editModeBadge" class="badge bg-warning text-dark d-none"
              >${L('editModeBadge')}</span
           ></h1>
           </div>
@@ -70,6 +76,11 @@ export default class PracticeMaker {
              </button>
 
              </li>
+             <li class="nav-item">
+                  <small id="questionCounter" class="btn btn-sm">
+                      Question 12 / 50
+                  </small>
+              </li>
              <li class="nav-item">
                 <button
                 id="prevBtn"
@@ -187,7 +198,6 @@ export default class PracticeMaker {
 
   setQuestions(_questions) {
     
-    console.log('COmplexity is ' + this.complexity);
 
     /**
      * Filters a list of questions based on a target complexity level.
@@ -303,11 +313,31 @@ export default class PracticeMaker {
       counterEl.classList.remove('d-none');
     }
 
-    this.questionPane.setQuestion(this.questions[this.currentQuestionIndex]);
+    const q = this.questions[this.currentQuestionIndex];
+
+    const container = document.getElementById("headerTagsContainer");
+
+container.innerHTML = "";
+
+if (q.tags?.length) {
+    container.insertAdjacentHTML(
+        "beforeend",
+        '<i class="bi bi-tags me-2"></i>'
+    );
+
+    q.tags.forEach(tag => {
+        const badge = document.createElement("span");
+        badge.className = "badge border text-body me-1";
+        badge.textContent = tag;
+        container.appendChild(badge);
+    });
+}
+
+    this.questionPane.setQuestion(q);
 
     // Restore saved answer when navigating back in QUIZ
     if (this.mode === 'QUIZ') {
-      const q = this.questions[this.currentQuestionIndex];
+      
       const saved = this.userAnswers[q.id];
       if (saved) this._restoreAnswer(q, saved);
     }

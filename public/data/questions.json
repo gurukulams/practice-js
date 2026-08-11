@@ -1,6 +1,7 @@
 [
   {
-    "question": "Which of the following are core OOP principles?\n\n\n<div class=\"math-display\">$\n\\tau = F \\times d \\quad ...(1.2)\n$</div>\n",
+    "question": "Which of the following are core OOP principles?\n\n\n<div class=\"math-display\">$\n\\tau = F \\times d \\quad ...(1.2)\n$",
+    "tags": ["OOP", "Java Basics"],
     "choices": [
       {
         "label": "Polymorphism",
@@ -31,6 +32,7 @@
   },
   {
     "question": "## Which of the following statement about Java interfaces is true?",
+    "tags": ["OOP", "Interfaces"],
     "explanation": "#### In Java, an interface can extend multiple interfaces. Private methods were added in Java 9, but an interface cannot have constructors.",
     "choices": [
       {
@@ -60,6 +62,7 @@
   },
   {
     "question": "## Match the following",
+    "tags": ["Design Patterns", "Collections", "IO"],
     "choices": [
       {
         "label": "Collection Streams API",
@@ -104,6 +107,7 @@
   },
   {
     "question": "## What keyword is used to define a class in Java?",
+    "tags": ["Java Basics", "Syntax"],
     "explanation": "#### The `class` keyword is used to define a class. Example: `public class MyClass {}`",
     "answer": "class",
     "type": "TEXT_ANSWER",
@@ -112,6 +116,7 @@
   },
   {
     "question": "## How many bits are in a byte?",
+    "tags": ["Computer Fundamentals"],
     "explanation": "#### A byte consists of 8 bits. Fundamental unit in computing.",
     "answer": 8,
     "type": "NUMBER_ANSWER",
