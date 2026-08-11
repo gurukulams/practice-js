@@ -340,11 +340,6 @@ if (q.tags?.length) {
       if (saved) this._restoreAnswer(q, saved);
     }
 
-    // Load note for this question
-    const noteKey = `practiceJs_note_${this.questions[this.currentQuestionIndex].id}`;
-    const notesTextarea = document.getElementById('notesTextarea');
-    if (notesTextarea) notesTextarea.value = localStorage.getItem(noteKey) || '';
-
     if (this.mode === 'EDIT') this._updateEditBtn();
 
   }
