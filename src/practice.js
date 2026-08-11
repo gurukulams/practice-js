@@ -35,17 +35,15 @@ export default class PracticeMaker {
               <i class="bi bi-x ms-1 fs-6 tag-remove-btn" role="button" aria-label="Remove tag" style="cursor: pointer;" onclick="this.parentElement.remove()"></i>
           </span>
       </div>
-          <div>
-             <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0 small text-muted"></ol>
-             </nav>
-             <h1 class="h5 mb-0 fw-bold"><span id="editModeBadge" class="badge bg-warning text-dark d-none"
-             >${L('editModeBadge')}</span
-          ></h1>
-          </div>
+
           <ul
              class="navbar-nav ms-auto d-flex flex-row justify-content-evenly justify-content-lg-end mt-lg-0 pb-lg-0"
           >
+          <li class="nav-item">
+          <span id="editModeBadge" class="btn badge bg-warning text-dark d-none"
+             >${L('editModeBadge')}</span
+          >
+          </li>
 
           <li class="nav-item">
           <button
@@ -78,7 +76,7 @@ export default class PracticeMaker {
              </li>
              <li class="nav-item">
                   <small id="questionCounter" class="btn btn-sm">
-                      Question 12 / 50
+                      Q 12 / 50
                   </small>
               </li>
              <li class="nav-item">
@@ -154,7 +152,7 @@ export default class PracticeMaker {
     class="position-fixed bottom-0 end-0 d-flex align-items-center gap-2 me-3 mb-4 z-3"
  >
 
-    <span id="editCounter" class="text-muted small fw-semibold d-none"></span>
+
     <button
        type="button"
        class="btn btn-primary"
@@ -545,7 +543,6 @@ if (q.tags?.length) {
 
     if (this.mode === 'EDIT') {
       this.checkBtn.classList.add('d-none');
-      document.getElementById('editCounter').classList.remove('d-none');
       document.getElementById('editAddNavBtn').addEventListener('click', () => this.showAuthorPane(null));
       document.getElementById('editEmptyAddBtn').addEventListener('click', () => this.showAuthorPane(null));
       document.getElementById('questionPane').addEventListener('dblclick', () => {
@@ -556,8 +553,8 @@ if (q.tags?.length) {
   }
 
   _updateEditBtn() {
-    const counter = document.getElementById('editCounter');
-    if (counter) counter.textContent = `${this.currentQuestionIndex + 1} / ${this.questions.length}`;
+    const counter = document.getElementById('questionCounter');
+    if (counter) counter.textContent = `Q ${this.currentQuestionIndex + 1} / ${this.questions.length}`;
     if (this.prevBtn) this.prevBtn.disabled = this.currentQuestionIndex === 0;
     if (this.nextBtn) this.nextBtn.disabled = this.currentQuestionIndex === this.questions.length - 1;
   }
@@ -599,7 +596,7 @@ if (q.tags?.length) {
       const L = (key) => t(this.locale, key);
       fabPane.innerHTML = `
         
-        <span id="editCounter" class="text-muted small fw-semibold"></span>
+
         <button type="button" class="btn btn-primary d-none" id="checkBtn" title="Check Question">
           <i class="bi bi-check"></i> ${L('verifyBtn')}
         </button>
