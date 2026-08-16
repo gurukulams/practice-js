@@ -1,6 +1,6 @@
 {
   "name": "@gurukulams/practice-js",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A personal learning tool. Add questions on any topic, practice them, and share with others.",
   "license": "MIT",
   "type": "module",
