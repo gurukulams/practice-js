@@ -48,6 +48,8 @@ git push && git push --tags
 
 The workflow fails the release if the tag and `package.json` version disagree, so always bump via `npm version`.
 
+Playwright runs on every release but is currently **non-blocking** — the suite has pre-existing failures (hash navigation is only wired up in `EDIT` mode, and the default `complexity` filter hides the `TEXT_ANSWER`/`NUMBER_ANSWER` fixtures). Once those are fixed, drop `continue-on-error` from `.github/workflows/publish-package.yml` so a red suite blocks the release again.
+
 ## Usage
 
 ```html
