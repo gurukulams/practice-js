@@ -39,14 +39,15 @@ npx playwright test # run tests
 
 ## Releasing
 
-Tags drive releases — pushing `v*` builds, tests, and publishes to GitHub Packages:
+No tags, no GitHub Releases. A push to `main` that changes `package.json`'s
+version builds, tests, and publishes that version to GitHub Packages
+automatically. If the version in `package.json` is already published, the
+workflow is a no-op.
 
 ```bash
-npm version patch      # bumps package.json and creates the matching tag
-git push && git push --tags
+npm version patch      # bumps package.json and commits (use --no-git-tag-version to skip the tag)
+git push
 ```
-
-The workflow fails the release if the tag and `package.json` version disagree, so always bump via `npm version`.
 
 Playwright runs on every release but is currently **non-blocking** — the suite has pre-existing failures (hash navigation is only wired up in `EDIT` mode, and the default `complexity` filter hides the `TEXT_ANSWER`/`NUMBER_ANSWER` fixtures). Once those are fixed, drop `continue-on-error` from `.github/workflows/publish-package.yml` so a red suite blocks the release again.
 
