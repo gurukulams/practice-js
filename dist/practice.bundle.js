@@ -40042,25 +40042,12 @@
       _contentRoot.innerHTML = `
     <div id="content" class="d-none" data-type="question">
     <header
-       class="navbar navbar-expand-lg navbar-light border-bottom sticky-md-top bg-body py-2 shadow-sm inner-section-header"
+       class="navbar navbar-expand-lg navbar-light border-bottom sticky-md-top bg-body py-2 shadow-sm"
     >
        <div class="d-flex align-items-center w-100">
           
-          <!-- NEW: Left-side Tags Container -->
-          <div id="headerTagsContainer" class="d-flex align-items-center gap-1 flex-wrap me-auto">
-          <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill d-inline-flex align-items-center">
-              Neet
-              <i class="bi bi-x ms-1 fs-6 tag-remove-btn" role="button" aria-label="Remove tag" style="cursor: pointer;" onclick="this.parentElement.remove()"></i>
-          </span>
-          <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill d-inline-flex align-items-center">
-              JEE
-              <i class="bi bi-x ms-1 fs-6 tag-remove-btn" role="button" aria-label="Remove tag" style="cursor: pointer;" onclick="this.parentElement.remove()"></i>
-          </span>
-          <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill d-inline-flex align-items-center">
-              NATA
-              <i class="bi bi-x ms-1 fs-6 tag-remove-btn" role="button" aria-label="Remove tag" style="cursor: pointer;" onclick="this.parentElement.remove()"></i>
-          </span>
-      </div>
+          <!-- Left-side Tags Container: populated per-question in setQuestion() -->
+          <div id="headerTagsContainer" class="d-flex align-items-center gap-1 flex-wrap me-auto"></div>
 
           <ul
              class="navbar-nav ms-auto d-flex flex-row justify-content-evenly justify-content-lg-end mt-lg-0 pb-lg-0"
