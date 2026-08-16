@@ -1,6 +1,8 @@
 {
-  "name": "practice-js",
+  "name": "@gurukulams/practice-js",
   "version": "1.0.0",
+  "description": "A personal learning tool. Add questions on any topic, practice them, and share with others.",
+  "license": "MIT",
   "type": "module",
   "main": "dist/practice.bundle.js",
   "module": "dist/practice.esm.js",
@@ -8,7 +10,21 @@
     "import": "./dist/practice.esm.js",
     "require": "./dist/practice.bundle.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gurukulams/practice-js.git"
+  },
+  "files": [
+    "dist/practice.*",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "scripts": {
+    "prepublishOnly": "npm run build",
     "build:rollup": "rollup -c",
     "sync": "copyfiles -u 1 \"public/**/*\" dist",
     "build": "npm-run-all sync build:rollup",

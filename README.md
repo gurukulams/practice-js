@@ -13,14 +13,40 @@ No accounts, no platform — just a JSON file of questions and a browser. You wr
 
 ---
 
-## Install & Build
+## Install as a dependency
+
+Published to **GitHub Packages** as `@gurukulams/practice-js` (never to the public npm registry). GitHub Packages requires a token even for public packages, so point the scope at the right registry first:
+
+```ini
+# .npmrc
+@gurukulams:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
+```
+
+```bash
+export NODE_AUTH_TOKEN=<PAT with read:packages>   # in Actions: secrets.GITHUB_TOKEN
+npm install @gurukulams/practice-js
+```
+
+## Develop & Build
 
 ```bash
 npm install
 npm run build       # → dist/practice.bundle.js (UMD) + dist/practice.esm.js
-npm run dev         # dev server on http://localhost:3000
+npm run watch       # dev server on http://localhost:3000
 npx playwright test # run tests
 ```
+
+## Releasing
+
+Tags drive releases — pushing `v*` builds, tests, and publishes to GitHub Packages:
+
+```bash
+npm version patch      # bumps package.json and creates the matching tag
+git push && git push --tags
+```
+
+The workflow fails the release if the tag and `package.json` version disagree, so always bump via `npm version`.
 
 ## Usage
 
