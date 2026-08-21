@@ -399,7 +399,34 @@
             try { return JSON.parse(localStorage.getItem('practiceJs_userQuestions')) || []; }
             catch(e) { return []; }
           })();
-          currentQuestions = externalQuestions.concat(userQuestions);
+
+          const   assignIds = (questions, baseId) => {
+            return questions.map((q, qIndex) => {
+              const questionId = `${baseId}-q${qIndex}`;
+              const choices = (q.choices || []).map((c, i) => ({
+                ...c,
+                id: `${questionId}-c${i}`,
+                questionId,
+              }));
+              const matches = (q.matches || []).map((m, i) => ({
+                ...m,
+                id: `${questionId}-m${i}`,
+                questionId,
+              }));
+              return {
+                ...q,
+                id: questionId,
+                choices: choices,
+                matches: matches,
+              };
+            });
+          }
+
+          currentQuestions = assignIds(externalQuestions.concat(userQuestions),"");
+
+
+          
+
           document.getElementById('maxQInput').placeholder = currentQuestions.length;
         } catch (e) {
           showAlert((pageStrings[currentLocale] || pageStrings.en).loadFail + e.message, 'danger');
