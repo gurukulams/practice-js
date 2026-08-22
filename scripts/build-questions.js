@@ -38,7 +38,7 @@ const schema = {
       items: {
         type: "string"
       },
-      "uniqueItems": true
+      uniqueItems: true
     },
     complexity: {
       type: "string",
