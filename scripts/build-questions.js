@@ -32,6 +32,14 @@ const schema = {
   properties: {
     question: { type: "string" },
     explanation: { type: "string" },
+    tags: {
+      type: "array",
+      description: "List of tags associated with the question, supporting Markdown strings.",
+      items: {
+        type: "string"
+      },
+      "uniqueItems": true
+    },
     complexity: {
       type: "string",
       enum: ["M", "H"],
@@ -121,6 +129,12 @@ function transformMarkdown(filePath) {
       ? processKatex(explanationText)
       : explanationText,
   };
+
+  // Transform tags array from markdown to HTML/formatted strings
+  if (Array.isArray(data.tags)) {
+    question.tags = data.tags.map(tag => tag.trim());
+  }
+      
 
   // Add complexity if it exists in the front matter data
   if (data.complexity) {
