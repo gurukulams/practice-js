@@ -7,8 +7,11 @@ export default [
     input: 'src/q-loader.js',
     output: [
       {
-        file: 'q-loader.bundle.js',
-  format: 'es' // Produces ES module output
+        file: 'dist/q-loader.bundle.js',
+        format: 'umd',
+        name: 'QuestionLoader',
+        exports: 'default', // <--- Change 'named' to 'default'
+        sourcemap: true
       },
       {
         file: 'dist/q-loader.esm.js',
