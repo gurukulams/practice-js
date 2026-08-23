@@ -126,8 +126,11 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
 
     <script type="module" src="practice.bundle.js"></script>
+    <script type="module" src="q-loader.esm.js"></script>
     <script type="module">
-
+      
+      import {QuestionLoader} from './q-loader.esm.js';
+      
       // ── Helpers ──────────────────────────────────────────────────────────────
 
       function showAlert(message, type) {
@@ -390,11 +393,10 @@
         }
 
         try {
-          var res = await fetch('./data/questions.json');
-          if (!res.ok) throw new Error('Network response was not ok');
-          var externalQuestions = (await res.json()).map(function(q) {
-            return Object.assign({}, q, { _source: 'external' });
-          });
+          const loader = new QuestionLoader();
+          loader.repoUrl = "http://localhost:3000/data/com/example";
+          const externalQuestions = await loader.loadQuestions();
+          
           var userQuestions = (function() {
             try { return JSON.parse(localStorage.getItem('practiceJs_userQuestions')) || []; }
             catch(e) { return []; }
