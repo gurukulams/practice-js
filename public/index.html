@@ -69,9 +69,10 @@
               <div style="max-width:160px">
                 <label class="form-label fw-semibold small" for="complexityCmb">Complexity<span class="text-muted fw-normal" id="practiceMaxQHint"></span></label>
                 <select id="complexityCmb" class="form-select" aria-label="Default select example">
-                  <option value="">Low</option>
-                  <option value="M">Medium</option>
                   <option value="H">High</option>
+                  <option value="M">Medium</option>
+                  <option value="">Low</option>
+                  
                 </select>
               </div>
             </div>
@@ -392,7 +393,7 @@
 
         try {
           const loader = new QuestionLoader();
-          loader.repoUrl = "http://localhost:3000/data/com/example";
+          loader.repoUrl = "/data/com/example";
           const externalQuestions = await loader.loadQuestions();
           
           var userQuestions = (function() {
@@ -434,7 +435,7 @@
         }
 
         syncQuizSection();
-        var pm = buildInstance(currentQuestions, currentMode, paramTimer, null, null);
+        var pm = buildInstance(currentQuestions, currentMode, paramTimer, null, "H");
 
         // Apply editable param after instance is built (buildInstance already handles EDIT mode,
         // but an explicit ?editable=1 should also enable edit badge in PRACTICE/QUIZ modes)
