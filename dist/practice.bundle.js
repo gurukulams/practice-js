@@ -40042,7 +40042,7 @@
       _contentRoot.innerHTML = `
     <div id="content" class="d-none" data-type="question">
     <header
-       class="navbar navbar-expand-lg navbar-light border-bottom sticky-md-top bg-body py-2 shadow-sm"
+       class="navbar navbar-expand-lg navbar-light border-bottom bg-body py-2 shadow-sm"
     >
        <div class="d-flex align-items-center w-100">
           
