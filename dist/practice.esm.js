@@ -40188,7 +40188,10 @@ class PracticeMaker {
       if (e.key === 'ArrowLeft'  && !this.prevBtn.disabled) this.doPrevious();
     };
     document.addEventListener('keydown', this._keyHandler);
-
+    // Get selected tags from URL parameters (?tags=tag1,tag2)
+    this.urlParams = new URLSearchParams(window.location.search);
+    const selectedTagsParam = this.urlParams.get("tags");
+    this.selectedTags = selectedTagsParam ? selectedTagsParam.split(",") : [];
 
 
   }
@@ -40211,26 +40214,41 @@ class PracticeMaker {
      * @param {string|null} targetComplexity - The complexity level ("H", "M", or null).
      * @returns {Array} The filtered subset of questions.
      */
-    function filterQuestionsByComplexity(questions, targetComplexity) {
+     function filterQuestions(questions, targetComplexity, selectedTags = []) {
       if (!questions || !Array.isArray(questions)) return [];
-
+    
       return questions.filter(q => {
-        // If complexity is H: Do not filter (include everything)
+        // 1. Complexity Filter
+        let matchesComplexity = false;
+        
         if (targetComplexity === "H") {
+          // Include everything
+          matchesComplexity = true; 
+        } else if (targetComplexity === "M") {
+          // Include questions with NO complexity or "M"
+          matchesComplexity = !q.complexity || q.complexity === "M"; 
+        } else {
+          // If targetComplexity is null/undefined: Include ONLY questions with NO complexity
+          matchesComplexity = !q.complexity; 
+        }
+    
+        if (!matchesComplexity) return false;
+    
+        // 2. Tag Filter
+        // If no tags are selected, skip tag filtering
+        if (!selectedTags || selectedTags.length === 0) {
           return true;
         }
-        
-        // If complexity is M: Include questions with NO complexity + "M"
-        if (targetComplexity === "M") {
-          return !q.complexity || q.complexity === "M";
-        }
-        
-        // If complexity is null: Include ONLY questions that do not have complexity
-        return !q.complexity;
+    
+        // Ensure q.tags exists and is an array before filtering
+        const questionTags = q.tags || [];
+    
+        // AND Logic: The question must contain ALL selected tags
+        return selectedTags.every(tag => questionTags.includes(tag));
       });
     }
 
-    this.questions = this.shuffle(filterQuestionsByComplexity(_questions,this.complexity));
+    this.questions = this.shuffle(filterQuestions(_questions,this.complexity, this.selectedTags));
     this.originalQuestions = JSON.parse(JSON.stringify(_questions));
     this.currentQuestionIndex = 0;
     this.userAnswers = {};
@@ -40330,12 +40348,58 @@ if (q.tags?.length) {
         '<i class="bi bi-tags me-2"></i>'
     );
 
+
+
     q.tags.forEach(tag => {
-        const badge = document.createElement("span");
+      const badge = document.createElement("span");
+      const isSelected = this.selectedTags.includes(tag);
+  
+      if (isSelected) {
+          // Highlight selected tag with primary background and white text
+          badge.className = "badge bg-primary text-white me-1 d-inline-flex align-items-center";
+          badge.textContent = tag + " ";
+  
+          // Create close button (x)
+          const closeBtn = document.createElement("span");
+          closeBtn.innerHTML = " &times;";
+          closeBtn.style.cursor = "pointer";
+          closeBtn.className = "ms-1";
+  
+          // Click event to remove tag from URL and refresh
+          closeBtn.addEventListener("click", (e) => {
+              e.stopPropagation(); // Prevent parent click events
+  
+              // Filter out the clicked tag
+              const updatedTags = this.selectedTags.filter(t => t !== tag);
+  
+              // Update URL parameters
+              if (updatedTags.length > 0) {
+                this.urlParams.set("tags", updatedTags.join(","));
+              } else {
+                this.urlParams.delete("tags");
+              }
+  
+              // Reload page with updated query string
+              window.location.search = this.urlParams.toString();
+          });
+  
+          badge.appendChild(closeBtn);
+      } else {
+          /// Unselected Tag Styling
         badge.className = "badge border text-body me-1";
+        badge.style.cursor = "pointer";
         badge.textContent = tag;
-        container.appendChild(badge);
-    });
+
+        // Click on unselected tag -> Add tag and refresh
+        badge.addEventListener("click", () => {
+            const updatedTags = [...this.selectedTags, tag];
+            this.urlParams.set("tags", updatedTags.join(","));
+            window.location.search = this.urlParams.toString();
+        });
+      }
+  
+      container.appendChild(badge);
+  });
 }
 
     this.questionPane.setQuestion(q);
@@ -40362,7 +40426,7 @@ if (q.tags?.length) {
   }
 
   setQuestionParameter() {
-    window.location.hash = this.questions[this.currentQuestionIndex].id;
+    // window.location.hash = this.questions[this.currentQuestionIndex].id;
   }
 
   doExplain(explain) {
