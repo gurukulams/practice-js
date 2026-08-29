@@ -250,11 +250,19 @@ function fixMarkdown(file, question) {
   // 1. Separate choices into 'answers' and 'choices' (distractors)
   const matches = question.matches ? question.matches.map((c) => c.label) : [];
 
+  // Extract tags, format strings/objects, and remove duplicates using Set
+  const rawTags = question.tags && Array.isArray(question.tags)
+    ? question.tags.map((t) => (typeof t === "object" ? t.label || t.name : t))
+    : [];
+
+  const tags = [...new Set(rawTags.map((tag) => tag.toString().trim()))].filter(Boolean);
+
   // 2. Prepare front-matter (Exclude explanation from here)
   const data = {
     choices: distractors,
     ...(answers && answers.length > 0 && { answers }),
     ...(matches && matches.length > 0 && { matches }),
+    ...(tags && tags.length > 0 && { tags }),
   };
 
   // 3. Construct the body: Question + Explanation Code Block
