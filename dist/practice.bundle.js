@@ -40052,6 +40052,14 @@
           <ul
              class="navbar-nav ms-auto d-flex flex-row justify-content-evenly justify-content-lg-end mt-lg-0 pb-lg-0"
           >
+
+          <li class="nav-item">
+          <div
+          id="quizTimer"
+          class="d-none fw-bold fs-5 align-self-center me-3"
+       ></div>
+          </li>
+
           <li class="nav-item">
           <span id="editModeBadge" class="btn badge bg-warning text-dark d-none"
              >${L('editModeBadge')}</span
@@ -40118,10 +40126,7 @@
     <div id="navPane" class="d-flex align-items-center mt-2">
        
 
-       <div
-          id="quizTimer"
-          class="d-none fw-bold fs-5 align-self-center me-3"
-       ></div>
+       
        
 
     </div>

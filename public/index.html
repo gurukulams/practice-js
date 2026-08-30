@@ -21,7 +21,8 @@
 
       <div class="collapse navbar-collapse" id="navbarControls">
         <div class="navbar-nav ms-auto d-flex flex-row flex-wrap align-items-center gap-2 mt-2 mt-md-0">
-
+<!-- Added Text Box -->
+<input type="text" class="form-select-sm form-control form-control-sm" id="qPathInput" placeholder="Question Path" value="com/example" style="width: 450px;">
           <!-- Language select -->
           <select class="form-select form-select-sm" id="langSelect" style="width:60px">
             <option value="en" selected>EN</option>
@@ -391,8 +392,10 @@
           document.getElementById('timerInput').value = paramTimer;
         }
 
+        const loader = new QuestionLoader();
+
         try {
-          const loader = new QuestionLoader();
+          
           loader.repoUrl = "/data/com/example";
           const externalQuestions = await loader.loadQuestions();
           
@@ -429,6 +432,8 @@
           
 
           document.getElementById('maxQInput').placeholder = currentQuestions.length;
+
+          
         } catch (e) {
           showAlert((pageStrings[currentLocale] || pageStrings.en).loadFail + e.message, 'danger');
           currentQuestions = [];
