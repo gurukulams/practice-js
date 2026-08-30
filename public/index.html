@@ -395,8 +395,9 @@
         const loader = new QuestionLoader();
 
         try {
-          
-          loader.repoUrl = "/data/com/example";
+          const trimmedUrl = document.getElementById('qPathInput').value.trim();
+          loader.repoUrl = "/data/" + trimmedUrl;
+          localStorage.setItem(STORAGE_KEY, trimmedUrl);
           const externalQuestions = await loader.loadQuestions();
           
           var userQuestions = (function() {
@@ -428,9 +429,6 @@
 
           currentQuestions = assignIds(externalQuestions.concat(userQuestions),"");
 
-
-          
-
           document.getElementById('maxQInput').placeholder = currentQuestions.length;
 
           
@@ -448,6 +446,26 @@
           pm.setEditable(true);
         }
       }
+
+      const qPathInput = document.getElementById('qPathInput');
+      const STORAGE_KEY = 'practiceJs_qPathUrl';
+      const savedUrl = localStorage.getItem(STORAGE_KEY);
+      if (savedUrl) {
+        qPathInput.value = savedUrl;
+      }
+
+      // Handle focus out (blur)
+      qPathInput.addEventListener('blur', (event) => {
+        init();
+      });
+
+      // Handle Pressing "Enter"
+      qPathInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault(); // Prevents default form submission if wrapped in a <form>
+            init();
+        }
+      });
 
       init();
     </script>
