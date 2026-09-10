@@ -144,6 +144,21 @@ Playwright runs on every release but is currently **non-blocking** — the suite
 - **URL params** (playground) — `?mode=QUIZ`, `?timer=60`, `?editable=1`
 - **Hash navigation** — `/#question-id` jumps to that question
 
+
+## Loading Extrnal Questions
+
+**Linux / macOS**
+```bash
+export QUESTIONS_FOLDER="<<DIR>>"
+export PUBLIC_FOLDER="<<DIR>>" 
+```
+
+**Windows (Cmd)**
+```bash
+set QUESTIONS_FOLDER=<<DIR>>
+set PUBLIC_FOLDER=<<DIR>>
+```
+
 ## License
 
 MIT
