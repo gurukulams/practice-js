@@ -327,14 +327,17 @@ function buildAll() {
     const dir = path.dirname(rel);
     const base = path.basename(file, ".md");
 
-    const match = base.match(/^([a-z0-9\-]+)(?:_([a-z]+))?$/);
-    if (!match) {
+    // Trailing "_<letters>" is a locale suffix (e.g. "1_ta", "question_07_ta").
+    // The base name itself may contain digits/underscores (e.g. "question_07"),
+    // so only strip the suffix when it parses as letters-only.
+    const localeSplit = base.match(/^(.+)_([a-z]+)$/);
+    const name = localeSplit ? localeSplit[1] : base;
+    const locale = localeSplit ? localeSplit[2] : "default";
+
+    if (!/^[a-z0-9\-_]+$/.test(name)) {
       console.error(`❌ Invalid filename: ${file}`);
       process.exit(1);
     }
-
-    const name = match[1];
-    const locale = match[2] || "default";
 
     const question = transformMarkdown(file);
     const result = validate(question, schema);
