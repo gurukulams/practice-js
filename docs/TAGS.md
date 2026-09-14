@@ -48,11 +48,11 @@ in the compiled `dist/data/questions.json`.
 returns the array of question objects, tags included, unmodified. The caller
 passes that array into `PracticeMaker.setQuestions()`.
 
-## 4. Selection state — driven entirely by the URL
+## 4. Selection state — driven by the URL, updated in place
 
-There is no in-memory reactive state (no store, no props). Selected tags are
-read once, in the `PracticeMaker` constructor, from the `?tags=` query
-param:
+There is no separate store/props — `this.selectedTags` is the single source
+of truth, and the `?tags=` query param mirrors it. Selected tags are read
+once, in the `PracticeMaker` constructor, from the URL:
 
 ```js
 // src/practice.js:176-179
@@ -61,9 +61,13 @@ const selectedTagsParam = this.urlParams.get("tags");
 this.selectedTags = selectedTagsParam ? selectedTagsParam.split(",") : [];
 ```
 
-Every tag click updates `this.urlParams` and does a **full page reload**
-(`window.location.search = this.urlParams.toString()`), which re-runs the
-constructor and re-parses `?tags=` from scratch. See §6.
+Every tag click updates `this.selectedTags`/`this.urlParams` and calls
+`_applyTagSelection()`, which pushes the new `?tags=` value onto the URL via
+`history.pushState` (no navigation) and re-runs `setQuestions()` against the
+already-loaded, unfiltered question set (`this.originalQuestions`). See §6.
+A `popstate` listener registered in the constructor keeps `selectedTags` in
+sync with browser Back/Forward, since those no longer trigger a reload
+either.
 
 ## 5. Filtering
 
@@ -82,8 +86,9 @@ function filterQuestions(questions, targetComplexity, selectedTags = []) {
 this.questions = this.shuffle(filterQuestions(_questions, this.complexity, this.selectedTags));
 ```
 
-Filtering is AND-based and applied once per `setQuestions()` call (i.e. once
-per page load, since selection changes trigger a reload).
+Filtering is AND-based and re-applied every time `setQuestions()` runs —
+once on initial page load, and again in place every time the tag selection
+changes (no reload required).
 
 ## 6. Rendering & click behavior
 
@@ -94,9 +99,15 @@ question change (`src/practice.js:326-388`):
   `<span class="badge">` per tag.
 - **Selected** tags (already in `this.selectedTags`) render as
   `badge bg-primary text-white ...` with an appended "×" that removes the
-  tag from `this.urlParams` and reloads.
+  tag and calls `_applyTagSelection()`.
 - **Unselected** tags render as `badge border text-body me-1` with
-  `cursor: pointer`; clicking adds the tag to `this.urlParams` and reloads.
+  `cursor: pointer`; clicking adds the tag and calls `_applyTagSelection()`.
+
+`_applyTagSelection(updatedTags)` (`src/practice.js`) is the shared path for
+both: it sets `this.selectedTags`, pushes the updated `?tags=` value onto
+the URL with `history.pushState` (no navigation, so any surrounding page
+state — e.g. an open overlay/modal in a host app — is left untouched), and
+re-renders by calling `this.setQuestions(this.originalQuestions)`.
 
 No custom CSS exists for this — everything is Bootstrap 5 badge/utility
 classes plus Bootstrap Icons, both loaded from CDN in `public/index.html`.
@@ -104,9 +115,9 @@ classes plus Bootstrap Icons, both loaded from CDN in `public/index.html`.
 ## Known limitations
 
 - **No callback/prop API.** `PracticeMaker` doesn't expose an `onTagClick`
-  or `selectedTags` option — tag state is read directly from
-  `window.location.search`. A consumer embedding `PracticeMaker` can't hook
-  into tag selection without relying on the URL and a page reload.
-- **State resets on every load**, by design — there's no persistence beyond
-  the URL, so bookmarking/sharing a `?tags=` link is the only way state
-  survives a reload.
+  or `selectedTags` option — tag state is read/written directly via
+  `this.selectedTags` and the URL. A consumer embedding `PracticeMaker`
+  can't hook into tag selection changes without polling the URL.
+- **No cross-session persistence**, by design — state lives only in the URL,
+  so bookmarking/sharing a `?tags=` link is the only way selection survives
+  a genuine page reload (opening the link fresh, not clicking a tag).

@@ -178,7 +178,15 @@ export default class PracticeMaker {
     const selectedTagsParam = this.urlParams.get("tags");
     this.selectedTags = selectedTagsParam ? selectedTagsParam.split(",") : [];
 
-
+    // Keep tag selection in sync with browser Back/Forward, since tag
+    // clicks now update the URL via pushState instead of reloading.
+    this._popstateHandler = () => {
+      this.urlParams = new URLSearchParams(window.location.search);
+      const tagsParam = this.urlParams.get("tags");
+      this.selectedTags = tagsParam ? tagsParam.split(",") : [];
+      if (this.originalQuestions) this.setQuestions(this.originalQuestions);
+    };
+    window.addEventListener('popstate', this._popstateHandler);
   }
 
   shuffle(array) {
@@ -187,6 +195,14 @@ export default class PracticeMaker {
       [array[i], array[j]] = [array[j], array[i]];
     }
     return array;
+  }
+
+  // Updates selected tags + URL (without navigating) and re-filters the
+  // already-loaded question set in place, instead of reloading the page.
+  _applyTagSelection(updatedTags) {
+    this.selectedTags = updatedTags;
+    history.pushState(null, "", "?" + this.urlParams.toString() + window.location.hash);
+    this.setQuestions(this.originalQuestions);
   }
 
   setQuestions(_questions) {
@@ -350,7 +366,7 @@ if (q.tags?.length) {
           closeBtn.style.cursor = "pointer";
           closeBtn.className = "ms-1";
   
-          // Click event to remove tag from URL and refresh
+          // Click event to remove tag and re-filter in place
           closeBtn.addEventListener("click", (e) => {
               e.stopPropagation(); // Prevent parent click events
   
@@ -363,9 +379,9 @@ if (q.tags?.length) {
               } else {
                 this.urlParams.delete("tags");
               }
-  
-              // Reload page with updated query string
-              window.location.search = this.urlParams.toString();
+
+              // Update the URL without reloading, then re-filter in place
+              this._applyTagSelection(updatedTags);
           });
   
           badge.appendChild(closeBtn);
@@ -375,11 +391,11 @@ if (q.tags?.length) {
         badge.style.cursor = "pointer";
         badge.textContent = tag;
 
-        // Click on unselected tag -> Add tag and refresh
+        // Click on unselected tag -> add tag and re-filter in place
         badge.addEventListener("click", () => {
             const updatedTags = [...this.selectedTags, tag];
             this.urlParams.set("tags", updatedTags.join(","));
-            window.location.search = this.urlParams.toString();
+            this._applyTagSelection(updatedTags);
         });
       }
   

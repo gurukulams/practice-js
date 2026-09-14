@@ -733,6 +733,72 @@ test.describe('Quiz result navigation', () => {
   });
 });
 
+// ─── TAG FILTERING (no reload) ────────────────────────────────────────────────
+
+test.describe('Tag filtering', () => {
+  // Questions are shuffled on every load, so don't rely on load order —
+  // navigate to the question that actually carries the "OOP" tag directly,
+  // the same way the QUIZ-mode tests navigate via setQuestion(idx).
+  async function loadOopTaggedQuestion(page) {
+    await page.goto('/');
+    await page.waitForSelector('#content:not(.d-none)');
+    await page.waitForFunction(() => window.__prakticeMaker?.questions?.length > 0);
+
+    const idx = await page.evaluate(() =>
+      window.__prakticeMaker.questions.findIndex(q => (q.tags || []).includes('OOP'))
+    );
+    expect(idx).toBeGreaterThanOrEqual(0);
+
+    await page.evaluate((i) => window.__prakticeMaker.setQuestion(i), idx);
+    await page.waitForSelector('#headerTagsContainer .badge');
+  }
+
+  test('clicking a tag updates the URL without reloading the page', async ({ page }) => {
+    await loadOopTaggedQuestion(page);
+
+    // Sentinel that only survives if the page is never reloaded/navigated
+    await page.evaluate(() => { window.__noReloadSentinel = true; });
+
+    await page.locator('#headerTagsContainer .badge', { hasText: 'OOP' }).click();
+    await page.waitForFunction(() => window.location.search.includes('tags=OOP'));
+
+    const sentinelSurvived = await page.evaluate(() => window.__noReloadSentinel === true);
+    expect(sentinelSurvived).toBe(true);
+    expect(await page.evaluate(() => window.location.search)).toContain('tags=OOP');
+  });
+
+  test('clicking the selected tag\'s "x" removes it without reloading', async ({ page }) => {
+    await loadOopTaggedQuestion(page);
+
+    await page.locator('#headerTagsContainer .badge', { hasText: 'OOP' }).click();
+    await page.waitForFunction(() => window.location.search.includes('tags=OOP'));
+
+    await page.evaluate(() => { window.__noReloadSentinel = true; });
+
+    // The now-selected "OOP" badge renders with a trailing "×" close button
+    await page.locator('#headerTagsContainer .badge.bg-primary', { hasText: 'OOP' }).locator('span').last().click();
+    await page.waitForFunction(() => !window.location.search.includes('tags=OOP'));
+
+    const sentinelSurvived = await page.evaluate(() => window.__noReloadSentinel === true);
+    expect(sentinelSurvived).toBe(true);
+  });
+
+  test('selecting a tag filters out questions that lack it', async ({ page }) => {
+    await loadOopTaggedQuestion(page);
+
+    const before = await page.evaluate(() => window.__prakticeMaker.questions.length);
+    await page.locator('#headerTagsContainer .badge', { hasText: 'OOP' }).click();
+    await page.waitForFunction(() => window.location.search.includes('tags=OOP'));
+
+    const after = await page.evaluate(() => window.__prakticeMaker.questions.length);
+    expect(after).toBeLessThan(before);
+    const allHaveTag = await page.evaluate(() =>
+      window.__prakticeMaker.questions.every(q => (q.tags || []).includes('OOP'))
+    );
+    expect(allHaveTag).toBe(true);
+  });
+});
+
 // ─── MAX QUESTIONS CAP ────────────────────────────────────────────────────────
 
 test.describe('Max questions cap', () => {
