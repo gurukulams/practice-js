@@ -12,6 +12,8 @@ answers:
 
 ## What are the essential qualities of "Good Material" in the Gurukulams ecosystem?
 
+![Guided](guru.jpeg)
+
 ```markdown
 According to our design principles, high-quality learning material must be:
 1. **Guided:** Leading the student through a logical path.

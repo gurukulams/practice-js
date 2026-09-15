@@ -79,7 +79,7 @@
           ? resolveLocalized(localizedQs, defaultQs)
           : defaultQs;
 
-        return this.assignIds(finalQs, folderUrl.split("/data/")[1]);
+        return this.processQuestions(finalQs, folderUrl);
       };
 
       // === Load main category questions ===
@@ -99,11 +99,70 @@
       }
 
       const shuffled = this.shuffle(allQuestions);
-      return this._maxQuestions ? shuffled.slice(0, this._maxQuestions) : shuffled;
+      return this._maxQuestions
+        ? shuffled.slice(0, this._maxQuestions)
+        : shuffled;
     }
 
-    assignIds(questions, baseId) {
-      return questions.map((q, qIndex) => {
+    processQuestions(questions, folderUrl) {
+  /**
+   * Browser-safe URL joiner replacing path.posix.join
+   */
+   const joinUrl = (base, relative) => {
+    const cleanBase = base.replace(/\/+$/, "");
+    const cleanRel = relative.replace(/^\/+/, "");
+    return `${cleanBase}/${cleanRel}`;
+  };
+
+  const appendFullPath = (folderUrl, question) => {
+    const prefixUrl = (imgPath) => {
+      if (imgPath.startsWith("http://") || imgPath.startsWith("https://")) {
+        return imgPath;
+      }
+      return joinUrl(folderUrl, imgPath);
+    };
+
+    const prefixMarkdownImages = (text) => {
+      if (!text) return text;
+      return text.replace(
+        /!\[(.*?)\]\((.*?)\)/g,
+        (match, alt, imgUrl) => `![${alt}](${prefixUrl(imgUrl.trim())})`
+      );
+    };
+
+    const updatedQuestion = JSON.parse(JSON.stringify(question));
+
+    if (updatedQuestion.question) {
+      updatedQuestion.question = prefixMarkdownImages(updatedQuestion.question);
+    }
+
+    if (updatedQuestion.explanation) {
+      updatedQuestion.explanation = prefixMarkdownImages(updatedQuestion.explanation);
+    }
+
+    if (Array.isArray(updatedQuestion.choices)) {
+      updatedQuestion.choices = updatedQuestion.choices.map((choice) => {
+        if (choice.image) {
+          choice.image = prefixUrl(choice.image);
+        }
+        return choice;
+      });
+    }
+
+    if (Array.isArray(updatedQuestion.matches)) {
+      updatedQuestion.matches = updatedQuestion.matches.map((match) => {
+        if (match.image) {
+          match.image = prefixUrl(match.image);
+        }
+        return match;
+      });
+    }
+
+    return updatedQuestion;
+  };
+      const baseId = folderUrl.split("/data/")[1];
+      return questions.map((rawQ, qIndex) => {
+        const q = appendFullPath(folderUrl, rawQ);
         const questionId = `${baseId}-q${qIndex}`;
         const choices = (q.choices || []).map((c, i) => ({
           ...c,
