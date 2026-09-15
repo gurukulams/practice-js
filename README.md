@@ -151,12 +151,14 @@ Playwright runs on every release but is currently **non-blocking** — the suite
 ```bash
 export QUESTIONS_FOLDER="<<DIR>>"
 export PUBLIC_FOLDER="<<DIR>>" 
+npm run watch:questions
 ```
 
 **Windows (Cmd)**
 ```bash
 set QUESTIONS_FOLDER=<<DIR>>
 set PUBLIC_FOLDER=<<DIR>>
+npm run watch:questions
 ```
 
 ## License

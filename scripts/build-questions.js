@@ -25,6 +25,54 @@ const PUBLIC_DIR = process.env.PUBLIC_FOLDER
   ? path.resolve(process.env.PUBLIC_FOLDER)
   : "dist";
 
+const IMAGE_EXTENSIONS = new Set(['.jpeg', '.jpg', '.png', '.svg']);  
+
+// Filename validation: Allows lowercase letters, numbers, hyphens, and underscores
+const VALID_FILENAME_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*(_[a-z]{2})?$/;
+
+function copyImages(srcDir = QUESTIONS_DIR, destDir = path.join(PUBLIC_DIR, 'data')) {
+  if (!fs.existsSync(srcDir)) {
+    console.warn(`Source folder does not exist: ${srcDir}`);
+    return;
+  }
+
+  const entries = fs.readdirSync(srcDir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const srcPath = path.join(srcDir, entry.name);
+    const destPath = path.join(destDir, entry.name);
+
+    if (entry.isDirectory()) {
+      // Validate subfolder names against the rule
+      if (!VALID_FILENAME_REGEX.test(entry.name)) {
+        console.error(`❌ Invalid folder name: ${entry.name} in ${srcDir}`);
+        process.exit(1);
+      }
+      
+      // Recursively process valid subdirectories
+      copyImages(srcPath, destPath);
+    } else if (entry.isFile()) {
+      const ext = path.extname(entry.name).toLowerCase();
+      
+      if (IMAGE_EXTENSIONS.has(ext)) {
+        // Extract base filename without extension
+        const baseName = path.basename(entry.name, ext);
+
+        // Validate image base filename
+        if (!VALID_FILENAME_REGEX.test(baseName)) {          
+          console.error(`❌ Invalid image filename: ${entry.name} in ${srcDir}`);
+          process.exit(1);
+        }
+
+        // Ensure destination directory exists before copying
+        fs.mkdirSync(destDir, { recursive: true });
+        fs.copyFileSync(srcPath, destPath);
+        console.log(`Copied: ${srcPath} -> ${destPath}`);
+      }
+    }
+  }
+}
+
 // === Schema for validation ===
 const schema = {
   type: "object",
@@ -79,49 +127,94 @@ const schema = {
   additionalProperties: false,
 };
 
+
 function transformMarkdown(filePath) {
   const raw = fs.readFileSync(filePath, "utf8");
   const { data, content } = matter(raw);
 
-  let questionRaw = content.trim();
+  const fileDir = path.dirname(filePath);
+
+  // Extract optional language suffix from the markdown file name (e.g., "multi-choice_ta.md" -> "ta")
+  const mdFileName = path.basename(filePath, ".md");
+  const langMatch = mdFileName.match(/_([a-z]{2})$/i);
+  const langSuffix = langMatch ? langMatch[1] : null;
+
+  /**
+   * Resolves the target image path.
+   * If a language suffix exists, checks for `image_lang.ext` first.
+   * If missing, falls back to standard `image.ext`.
+   * Throws an error if neither exists.
+   */
+  const resolveAndValidateImage = (imgUrl) => {
+    const rawPath = imgUrl.replace(/^\//, "");
+    const ext = path.extname(rawPath);
+    const baseName = path.basename(rawPath, ext);
+
+    // 1. Try language-specific version if current file has a language code
+    if (langSuffix) {
+      // Avoid duplicating language suffix if it's already in the image string
+      const langBaseName = baseName.endsWith(`_${langSuffix}`)
+        ? baseName
+        : `${baseName}_${langSuffix}`;
+      
+      const langImgPath = `${langBaseName}${ext}`;
+      const fullLangPath = path.resolve(fileDir, langImgPath);
+
+      if (fs.existsSync(fullLangPath)) {
+        return langImgPath; // Use the localized image
+      }
+    }
+
+    // 2. Fall back to standard default image path
+    const fullDefaultPath = path.resolve(fileDir, rawPath);
+    if (fs.existsSync(fullDefaultPath)) {
+      return rawPath;
+    }
+
+    // 3. Error out if neither exists
+    console.error(
+      `❌ Image resolution error in file: ${filePath}\n` +
+      `   Referenced image "${imgUrl}" (or localized variant) does not exist in: ${fileDir}`
+    );
+    process.exit(1);
+  };
+
+  /**
+   * Scans markdown text body for images, validates, and replaces with resolved paths.
+   */
+  const processImagesInText = (text) => {
+    if (!text) return "";
+    return text.replace(/!\[(.*?)\]\((.*?)\)/g, (match, alt, imgUrl) => {
+      const resolvedPath = resolveAndValidateImage(imgUrl.trim());
+      return `![${alt}](${resolvedPath})`;
+    });
+  };
+
+  // Process and validate images inside the main content body
+  const processedContent = processImagesInText(content);
+
+  let questionRaw = processedContent.trim();
   let explanationText;
 
-  // 1. Extract Markdown Explanation if it exists in a code block
+  // Extract Markdown Explanation if it exists in a code block
   const codeBlockMatch = questionRaw.match(/```markdown\s+([\s\S]*?)```/i);
   if (codeBlockMatch) {
     explanationText = codeBlockMatch[1].trim();
     questionRaw = questionRaw.split(/```markdown/i)[0].trim();
   }
 
-/**
- * Helper to process standard $ and $$ delimiters.
- */
- const processKatex = (text) => {
-  if (!text) return "";
-
-  return (
-    text
-      /**
-       * 1. Display Mode: $$ ... $$
-       * The [^$] ensures we don't accidentally match inline math.
-       * The 's' flag allows matching across multiple lines.
-       */
+  const processKatex = (text) => {
+    if (!text) return "";
+    return text
       .replace(
         /\$\$(.*?)\$\$/gs,
         (match, formula) => `\n<div class="math-display">$$${formula}$$</div>\n`
       )
-
-      /**
-       * 2. Inline Mode: $ ... $
-       * We use a lookbehind/lookahead logic to ensure we don't match 
-       * empty dollar signs or double dollars.
-       */
       .replace(
         /(?<!\$)\$([^$\n]+?)\$(?!\$)/g,
         (match, formula) => `$${formula.trim()}$`
-      )
-  );
-};
+      );
+  };
 
   const question = {
     question: processKatex(questionRaw),
@@ -130,71 +223,55 @@ function transformMarkdown(filePath) {
       : explanationText,
   };
 
-  // Transform tags array from markdown to HTML/formatted strings
   if (Array.isArray(data.tags)) {
-    question.tags = data.tags.map(tag => tag.trim());
+    question.tags = data.tags.map((tag) => tag.trim());
   }
-      
 
-  // Add complexity if it exists in the front matter data
   if (data.complexity) {
     question.complexity = data.complexity;
   }
 
-  // 2. Handle Logic for Choices/Answers (Existing logic)
   const answers = Array.isArray(data.answers) ? data.answers : [];
   const initialChoices = Array.isArray(data.choices) ? data.choices : [];
   const combinedList = [...initialChoices, ...answers];
 
-/**
- * Process Choices Value.
- * @param {*} choiceList
- * @returns
- */
- const processChoices = (choiceList) => {
-  return choiceList.map((item) => {
-    // 1. Force convert to string and aggressively trim edge whitespace
-    let rawLabel = typeof item === "string" ? item.trim() : String(item);
-    let imageUrl = null;
+  const processChoices = (choiceList) => {
+    return choiceList.map((item) => {
+      let rawLabel = typeof item === "string" ? item.trim() : String(item);
+      let imageUrl = null;
 
-    // Remove wrapping quotes if the YAML parser passed them down as literal string chars
-    if (rawLabel.startsWith('"') && rawLabel.endsWith('"')) {
-      rawLabel = rawLabel.slice(1, -1).trim();
-    }
-
-    // 2. Perform the Markdown extraction
-    if (typeof rawLabel === "string") {
-      // Direct regex to pull text out of ![...] and (...) anywhere inside the line
-      const imgMatch = rawLabel.match(/!\[(.*?)\]\((.*?)\)/);
-      
-      if (imgMatch) {
-        rawLabel = imgMatch[1].trim(); // Extracts: Guided 2.
-        imageUrl = imgMatch[2].trim(); // Extracts: /guru.jpeg
+      if (rawLabel.startsWith('"') && rawLabel.endsWith('"')) {
+        rawLabel = rawLabel.slice(1, -1).trim();
       }
-    }
 
-    // 3. Process KaTeX only AFTER the clean text label has been extracted
-    const processedLabel = processKatex(rawLabel);
+      if (typeof rawLabel === "string") {
+        const imgMatch = rawLabel.match(/!\[(.*?)\]\((.*?)\)/);
 
-    const choice = { label: processedLabel };
+        if (imgMatch) {
+          rawLabel = imgMatch[1].trim();
+          
+          // Resolve and assign localized image path if available
+          imageUrl = resolveAndValidateImage(imgMatch[2].trim());
+        }
+      }
 
-    // 4. Attach the parsed image field
-    if (imageUrl) {
-      choice.image = imageUrl;
-    }
+      const processedLabel = processKatex(rawLabel);
+      const choice = { label: processedLabel };
 
-    // 5. Check against the answers array using the pristine text label
-    if (answers.includes(rawLabel)) {
-      choice.answer = true;
-    }
+      if (imageUrl) {
+        choice.image = imageUrl;
+      }
 
-    return choice;
-  });
-};
+      if (answers.includes(rawLabel)) {
+        choice.answer = true;
+      }
+
+      return choice;
+    });
+  };
 
   if (combinedList.length > 0) {
     question.choices = processChoices(combinedList);
-
     const correctCount = question.choices.filter((c) => c.answer).length;
     question.type = correctCount > 1 ? "MULTI_CHOICE" : "CHOOSE_THE_BEST";
   }
@@ -202,7 +279,6 @@ function transformMarkdown(filePath) {
   const matches = Array.isArray(data.matches) ? data.matches : [];
   if (matches.length > 0) {
     question.matches = processChoices(matches);
-
     question.type = "MATCH_THE_FOLLOWING";
   }
 
@@ -317,6 +393,7 @@ function throwError(file, result) {
 }
 
 function buildAll() {
+  copyImages();
   const files = glob.sync("**/*.md", { cwd: QUESTIONS_DIR, absolute: true });
   const grouped = {};
   const locales = {};
@@ -334,7 +411,8 @@ function buildAll() {
     const name = localeSplit ? localeSplit[1] : base;
     const locale = localeSplit ? localeSplit[2] : "default";
 
-    if (!/^[a-z0-9\-_]+$/.test(name)) {
+    // Usage example:
+    if (!VALID_FILENAME_REGEX.test(name)) {
       console.error(`❌ Invalid filename: ${file}`);
       process.exit(1);
     }
