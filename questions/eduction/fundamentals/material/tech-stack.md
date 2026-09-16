@@ -14,7 +14,8 @@ matches:
 
 ## Match the Technology to its specific role in the Gurukulams Design System.
 
-```markdown
+---
+
 Each tool in our stack is chosen for a specific architectural reason:
 
 * **Bootstrap 5:** Handles all HTML manipulation and layout without custom CSS files.
@@ -22,4 +23,3 @@ Each tool in our stack is chosen for a specific architectural reason:
 * **KaTeX:** Provides the fastest math typesetting available for the web.
 
 *Note: Tailwind CSS is a distractor and not part of our current core stack.*
-```

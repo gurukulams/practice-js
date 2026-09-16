@@ -196,11 +196,13 @@ function transformMarkdown(filePath) {
   let questionRaw = processedContent.trim();
   let explanationText;
 
-  // Extract Markdown Explanation if it exists in a code block
-  const codeBlockMatch = questionRaw.match(/```markdown\s+([\s\S]*?)```/i);
-  if (codeBlockMatch) {
-    explanationText = codeBlockMatch[1].trim();
-    questionRaw = questionRaw.split(/```markdown/i)[0].trim();
+  // Extract Markdown Explanation separated by '---'
+  const parts = questionRaw.split(/\n\s*---\s*\n/);
+
+  if (parts.length > 1) {
+    questionRaw = parts[0].trim();
+    // Join back any additional '---' in case explanation itself contains horizontal rules
+    explanationText = parts.slice(1).join("\n---\n").trim();
   }
 
   const processKatex = (text) => {

@@ -9,7 +9,8 @@ answers:
 
 ## How should a content creator implement Math Expressions in their learning materials?
 
-```markdown
+---
+
 Our system leverages **KaTeX** for high-performance rendering. 
 
 * **Inline:** Use single dollar signs like $\sum_{i=1}^{n} i$.
@@ -17,4 +18,3 @@ Our system leverages **KaTeX** for high-performance rendering.
 * **Syntax:** Always write in standard LaTeX format to ensure the parser recognizes the symbols. 
 
 *Note: Screenshots are discouraged as they are not accessible or searchable.*
-```
