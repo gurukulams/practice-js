@@ -40200,9 +40200,21 @@
       };
       document.addEventListener('keydown', this._keyHandler);
       // Get selected tags from URL parameters (?tags=tag1,tag2)
-      this.urlParams = new URLSearchParams(window.location.search);
+      // Remove the leading '#' and parse as URLSearchParams
+      const hashString = window.location.hash.replace(/^#/, "");
+      this.urlParams = new URLSearchParams(hashString);
+
       const selectedTagsParam = this.urlParams.get("tags");
       this.selectedTags = selectedTagsParam ? selectedTagsParam.split(",") : [];
+
+      window.addEventListener("hashchange", () => {
+        const hashString = window.location.hash.replace(/^#/, "");
+        const params = new URLSearchParams(hashString);
+        const selectedTagsParam = params.get("tags");
+        
+        this.selectedTags = selectedTagsParam ? selectedTagsParam.split(",") : [];
+        this.setQuestions(this.originalQuestions);
+      });
 
       // Keep tag selection in sync with browser Back/Forward, since tag
       // clicks now update the URL via pushState instead of reloading.
@@ -40225,9 +40237,17 @@
 
     // Updates selected tags + URL (without navigating) and re-filters the
     // already-loaded question set in place, instead of reloading the page.
-    _applyTagSelection(updatedTags) {
-      this.selectedTags = updatedTags;
-      history.pushState(null, "", "?" + this.urlParams.toString() + window.location.hash);
+    _applyTagSelection(tagsArray) {
+      this.selectedTags = tagsArray;
+    
+      const params = new URLSearchParams();
+      if (tagsArray.length > 0) {
+        params.set("tags", tagsArray.join(","));
+        window.location.hash = params.toString(); // Updates URL to #tags=tag1,tag2
+      } else {
+        // Clear hash cleanly without triggering jump-to-top behavior
+        history.replaceState(null, "", window.location.pathname + window.location.search);
+      }
       this.setQuestions(this.originalQuestions);
     }
 
