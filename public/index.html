@@ -153,6 +153,27 @@
       var currentMode = 'PRACTICE';
       var currentLocale = 'en';
 
+      const STORAGE_KEY_LANG = "selectedLanguage";
+
+      document.addEventListener("DOMContentLoaded", () => {
+        const selectEl = document.getElementById("langSelect");
+        
+      
+        // 1. Get saved value from localStorage
+        const savedLang = localStorage.getItem(STORAGE_KEY_LANG);
+      
+        // 2. Set dropdown value if a saved choice exists
+        if (savedLang) {
+          selectEl.value = savedLang;
+        }
+      
+        // 3. Save to localStorage when selection changes
+        selectEl.addEventListener("change", (e) => {
+          localStorage.setItem(STORAGE_KEY_LANG, e.target.value);
+          location.reload();
+        });
+      });
+
       // ── Page-level i18n ───────────────────────────────────────────────────────
 
       var pageStrings = {
@@ -196,10 +217,8 @@
         document.querySelectorAll('[data-i18n="options"]').forEach(function(el) { el.textContent = s.options; });
         document.querySelector('[data-i18n="modeLabel"]').textContent = s.modeLabel;
         document.querySelector('label[for="maxQInput"]').textContent = s.maxQLabel;
-        document.querySelector('label[for="optTimer"]').textContent = s.timerRadio;
-        document.querySelector('label[for="optMaxQ"]').textContent = s.maxQRadio;
-        var jsonDescEl = document.querySelector('#jsonEditorSection p.text-muted');
-        if (jsonDescEl) jsonDescEl.innerHTML = s.jsonDesc;
+        
+   
         document.getElementById('resetJsonBtn').innerHTML = '<i class="bi bi-arrow-counterclockwise me-1"></i>' + s.resetBtn;
         document.getElementById('loadJsonBtn').innerHTML = '<i class="bi bi-upload me-1"></i>' + s.loadBtn;
       }
@@ -393,6 +412,9 @@
         }
 
         const loader = new QuestionLoader();
+        loader.languageCode = localStorage.getItem(STORAGE_KEY_LANG);
+
+        console.log('sss' + localStorage.getItem(STORAGE_KEY_LANG));
 
         try {
           const trimmedUrl = document.getElementById('qPathInput').value.trim();
