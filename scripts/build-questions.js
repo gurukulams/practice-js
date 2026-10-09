@@ -504,34 +504,53 @@ function buildAll() {
     }
   }
 
-  // Generate Sub Questions.
-  const subQMap = {};
-  for (const dir of Object.keys(grouped)) {
-    const tokens = dir.split(path.sep);
-    if (tokens.length > 3) {
-      const dirName = tokens[tokens.length - 1];
-      // Replaced "dist" with PUBLIC_DIR
-      const parentDir = path.join(
-        PUBLIC_DIR,
-        "data",
-        dir.replace(path.sep + dirName, "")
-      );
-      if (parentDir in subQMap) {
-        subQMap[parentDir].push(dirName);
-      } else {
-        subQMap[parentDir] = [dirName];
-      }
-    }
+// Generate Sub Questions.
+const subQMap = {};
+
+// Build a set of all unique directory paths that exist under QUESTIONS_DIR
+const allDirs = new Set();
+for (const file of files) {
+  const rel = path.relative(QUESTIONS_DIR, file);
+  let dir = path.dirname(rel);
+  
+  // Add current directory and all ancestor directories up to root "."
+  while (dir && dir !== ".") {
+    allDirs.add(dir.split(path.sep).join(path.posix.sep));
+    const parent = path.dirname(dir);
+    dir = parent === dir ? "." : parent;
+  }
+}
+
+// Populate parent-to-child relationships for every directory
+for (const dir of allDirs) {
+  const parentDir = path.dirname(dir);
+  const dirName = path.basename(dir);
+
+  // Parent path inside PUBLIC_DIR/data/
+  const parentOutDir = parentDir === "."
+    ? path.join(PUBLIC_DIR, "data")
+    : path.join(PUBLIC_DIR, "data", parentDir);
+
+  if (!subQMap[parentOutDir]) {
+    subQMap[parentOutDir] = [];
   }
 
-  for (const dir of Object.keys(subQMap)) {
+  if (!subQMap[parentOutDir].includes(dirName)) {
+    subQMap[parentOutDir].push(dirName);
+  }
+}
+
+// Write sub-questions.json for all parent directories
+for (const dir in subQMap) {
+  if (subQMap[dir].length > 0) {
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(
-      path.join(dir, `sub-questions.json`),
-      JSON.stringify(subQMap[dir], null, 0)
+      path.join(dir, "sub-questions.json"),
+      JSON.stringify(subQMap[dir].sort(), null, 0)
     );
-    console.log(`✅ Generated: ${path.join(dir, `sub-questions.json`)}`);
+    console.log(`✅ Generated: ${path.join(dir, "sub-questions.json")}`);
   }
+}
 }
 
 // === CLI flag check ===

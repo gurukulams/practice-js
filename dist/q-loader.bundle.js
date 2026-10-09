@@ -25,8 +25,8 @@
     }
 
     set languageCode(value) {
-      this._languageCode = value;
-      console.log(`languageCode set to: ${value}`);
+      this._languageCode = (value === 'en') ? '' : value;
+      console.log(`languageCode set to: ${this._languageCode}`);
     }
 
     get maxQuestions() {
@@ -51,11 +51,9 @@
 
       return questions;
     }
-
     async getQuestions() {
       const baseUrl = `${this._repoUrl}`;
-      const allQuestions = [];
-
+    
       const fetchJSON = async (url) => {
         try {
           const res = await fetch(url);
@@ -64,41 +62,58 @@
           return null;
         }
       };
-
+    
       const resolveLocalized = (localized, fallback) => {
-        return localized.map((q, i) => (typeof q === "number" ? fallback[q] : q));
+        return localized.map((q) => (typeof q === "number" ? fallback[q] : q));
       };
-
+    
       const collectQuestions = async (folderUrl) => {
-        const defaultQs = (await fetchJSON(`${folderUrl}/questions.json`)) || [];
+        const defaultQs = await fetchJSON(`${folderUrl}/questions.json`);
+        if (!defaultQs) return [];
+    
         const localizedQs = this._languageCode
           ? await fetchJSON(`${folderUrl}/questions_${this._languageCode}.json`)
           : null;
-
+    
         const finalQs = localizedQs
           ? resolveLocalized(localizedQs, defaultQs)
           : defaultQs;
-
+    
         return this.processQuestions(finalQs, folderUrl);
       };
-
-      // === Load main category questions ===
-      allQuestions.push(...(await collectQuestions(baseUrl)));
-
-      // === Load subfolders recursively ===
-      const subfolders = await fetchJSON(`${baseUrl}/sub-questions.json`);
-      if (subfolders?.length) {
-        const fetches = subfolders.map(async (sub) => {
-          const subPath = `/${sub}`;
-          const subUrl = `${questionsUrl}/${subPath}`;
-          console.log("Sub Url " + subUrl);
-          const subQs = await collectQuestions(subUrl);
-          allQuestions.push(...subQs);
+    
+      const loadFolderRecursively = async (folderUrl) => {
+        const folderQuestions = [];
+    
+        // 1. Collect local questions if present
+        const questions = await collectQuestions(folderUrl);
+        if (questions?.length) {
+          folderQuestions.push(...questions);
+        }
+    
+        // 2. Fetch and traverse sub-questions index
+        const subfolders = await fetchJSON(`${folderUrl}/sub-questions.json`);
+        if (!subfolders || !Array.isArray(subfolders) || subfolders.length === 0) {
+          return folderQuestions;
+        }
+    
+        // 3. Resolve subfolders using folderUrl
+        const subFolderPromises = subfolders.map(async (sub) => {
+          const cleanSubPath = sub.startsWith('/') ? sub.slice(1) : sub;
+          const subUrl = `${folderUrl}/${cleanSubPath}`; // Fixed: uses folderUrl
+    
+          return await loadFolderRecursively(subUrl);
         });
-        await Promise.all(fetches);
-      }
-
+    
+        const nestedResults = await Promise.all(subFolderPromises);
+        nestedResults.forEach((qList) => folderQuestions.push(...qList));
+    
+        return folderQuestions;
+      };
+    
+      const allQuestions = await loadFolderRecursively(baseUrl);
       const shuffled = this.shuffle(allQuestions);
+    
       return this._maxQuestions
         ? shuffled.slice(0, this._maxQuestions)
         : shuffled;
