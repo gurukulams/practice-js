@@ -40036,6 +40036,7 @@
       this.options = _options;
       this.mode = (_options && _options.mode) ? _options.mode : 'PRACTICE';
       this.complexity = (_options && _options.complexity) ? _options.complexity:null;
+      this.maxQ = (_options && _options.maxQ) ? _options.maxQ:null;
       this.timer = (_options && _options.timer) ? _options.timer : null;
       this.locale = (_options && _options.locale) ? _options.locale : 'en';
       const L = (key) => t(this.locale, key);
@@ -40254,48 +40255,60 @@
     setQuestions(_questions) {
       
 
+      
       /**
-       * Filters a list of questions based on a target complexity level.
-       * 
-       * @param {Array} questions - The list of question objects to filter.
-       * @param {string|null} targetComplexity - The complexity level ("H", "M", or null).
-       * @returns {Array} The filtered subset of questions.
-       */
-       function filterQuestions(questions, targetComplexity, selectedTags = []) {
-        if (!questions || !Array.isArray(questions)) return [];
-      
-        return questions.filter(q => {
-          // 1. Complexity Filter
-          let matchesComplexity = false;
-          
-          if (targetComplexity === "H") {
-            // Include everything
-            matchesComplexity = true; 
-          } else if (targetComplexity === "M") {
-            // Include questions with NO complexity or "M"
-            matchesComplexity = !q.complexity || q.complexity === "M"; 
-          } else {
-            // If targetComplexity is null/undefined: Include ONLY questions with NO complexity
-            matchesComplexity = !q.complexity; 
-          }
-      
-          if (!matchesComplexity) return false;
-      
-          // 2. Tag Filter
-          // If no tags are selected, skip tag filtering
-          if (!selectedTags || selectedTags.length === 0) {
-            return true;
-          }
-      
-          // Ensure q.tags exists and is an array before filtering
-          const questionTags = q.tags || [];
-      
-          // AND Logic: The question must contain ALL selected tags
-          return selectedTags.every(tag => questionTags.includes(tag));
-        });
+   * Filters a list of questions based on a target complexity level and selected tags,
+   * and optionally caps the number of returned questions.
+   * 
+   * @param {Array} questions - The list of question objects to filter.
+   * @param {string|null} targetComplexity - The complexity level ("H", "M", or null).
+   * @param {Array<string>} [selectedTags=[]] - List of tag strings that must all match.
+   * @param {number|null} [maxQ=null] - Maximum number of questions to return.
+   * @returns {Array} The filtered subset of questions.
+   */
+  function filterQuestions(questions, targetComplexity, selectedTags = [], maxQ = null) {
+    if (!questions || !Array.isArray(questions)) return [];
+
+    const filtered = questions.filter(q => {
+      // 1. Complexity Filter
+      let matchesComplexity = false;
+
+      if (targetComplexity === "H") {
+        // Include everything
+        matchesComplexity = true; 
+      } else if (targetComplexity === "M") {
+        // Include questions with NO complexity or "M"
+        matchesComplexity = !q.complexity || q.complexity === "M"; 
+      } else {
+        // If targetComplexity is null/undefined: Include ONLY questions with NO complexity
+        matchesComplexity = !q.complexity; 
       }
 
-      this.questions = this.shuffle(filterQuestions(_questions,this.complexity, this.selectedTags));
+      if (!matchesComplexity) return false;
+
+      // 2. Tag Filter
+      // If no tags are selected, skip tag filtering
+      if (!selectedTags || selectedTags.length === 0) {
+        return true;
+      }
+
+      // Ensure q.tags exists and is an array before filtering
+      const questionTags = q.tags || [];
+
+      // AND Logic: The question must contain ALL selected tags
+      return selectedTags.every(tag => questionTags.includes(tag));
+    });
+
+    // 3. Max Questions Cap
+    const parsedMaxQ = Number(maxQ);
+    if (Number.isInteger(parsedMaxQ) && parsedMaxQ > 0) {
+      return filtered.slice(0, parsedMaxQ);
+    }
+
+    return filtered;
+  }
+
+      this.questions = this.shuffle(filterQuestions(_questions,this.complexity, this.selectedTags, this.maxQ));
       this.originalQuestions = JSON.parse(JSON.stringify(_questions));
       this.currentQuestionIndex = 0;
       this.userAnswers = {};

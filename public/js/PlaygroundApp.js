@@ -210,14 +210,13 @@
       let filteredQuestions = this.#questions;
       if (this.#mode === 'EDIT') {
         filteredQuestions = this.#questions.filter((q) => q._source === 'user');
-      } else if (maxQ && maxQ > 0 && maxQ < this.#questions.length) {
-        filteredQuestions = this.#questions.slice(0, maxQ);
       }
   
       const options = {
         mode: this.#mode,
         complexity,
         locale: this.#locale,
+        maxQ: maxQ,
         error: (msg) => this.showAlert(msg, 'danger'),
       };
   
