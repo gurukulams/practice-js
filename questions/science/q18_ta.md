@@ -1,10 +1,7 @@
 ---
-complexity: 'M'
 tags:
-  - science
-  - chemistry
-  - atomic-theory
-  - 1-mark
+  - public
+  - '2024'
 choices:
   - '$6.023 \times 10^{-23}$'
   - '$3.011 \times 10^{23}$'

@@ -1,10 +1,7 @@
 ---
-complexity: 'M'
 tags:
-  - science
-  - physics
-  - thermal-physics
-  - 1-mark
+  - public
+  - '2024'
 choices:
   - '$3.81\text{ J மோல்}^{-1}\text{ K}^{-1}$'
   - '$8.03\text{ J மோல்}^{-1}\text{ K}^{-1}$'

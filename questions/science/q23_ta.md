@@ -1,10 +1,7 @@
 ---
-complexity: 'M'
 tags:
-  - science
-  - chemistry
-  - chemical-reactions
-  - 1-mark
+  - public
+  - '2024'
 choices:
   - '$\text{C}_{(s)} + \text{O}_{2(g)} \rightarrow \text{CO}_{2(g)}$'
   - '$\text{Mg}_{(s)} + \text{Cl}_{2(g)} \rightarrow \text{MgCl}_{2(s)}$'

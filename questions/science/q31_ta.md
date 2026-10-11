@@ -1,10 +1,7 @@
 ---
-complexity: 'M'
 tags:
-  - science
-  - chemistry
-  - solutions
-  - 1-mark
+  - public
+  - '2025'
 choices:
   - '$1 \times 10^{-3}\text{ M}$'
   - '$3\text{ M}$'

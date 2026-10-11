@@ -1,10 +1,7 @@
 ---
-complexity: 'M'
 tags:
-  - science
-  - physics
-  - laws-of-motion
-  - 1-mark
+  - public
+  - '2025'
 choices:
   - '$9.8\text{ டைன்}$'
   - '$9.8 \times 10^4\text{ N}$'

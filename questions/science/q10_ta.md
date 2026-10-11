@@ -1,10 +1,7 @@
 ---
-complexity: 'M'
 tags:
-  - science
-  - biology
-  - health-and-disease
-  - 1-mark
+  - public
+  - '2023'
 choices:
   - '(1)-(iv), (2)-(iii), (3)-(i), (4)-(ii)'
   - '(1)-(i), (2)-(iii), (3)-(iv), (4)-(ii)'
