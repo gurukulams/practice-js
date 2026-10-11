@@ -1,0 +1,20 @@
+---
+complexity: 'M'
+tags:
+  - science
+  - chemistry
+  - solutions
+  - 1-mark
+choices:
+  - '2 கி'
+  - '16 கி'
+  - '8 கி'
+answers:
+  - '18 கி'
+---
+
+## நீரின் கிராம் மூலக்கூறு நிறை __________.
+
+---
+
+நீரின் ($\text{H}_2\text{O}$) கிராம் மூலக்கூறு நிறை = $(2 \times 1) + 16 = 18\text{ கி}$.
