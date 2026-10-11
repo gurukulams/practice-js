@@ -44,8 +44,9 @@ QUESTIONS.md          # Complete repository of 2-mark, 4-mark & 7-mark questions
 
 ### A. 1-Mark Questions (MCQ / CHOOSE_THE_BEST)
 - **Frontmatter**:
-  - `complexity`: `"M"` or `"H"`
-  - `tags`: List of strings (e.g., `["science", "physics", "1-mark"]`)
+  - `tags`:
+    - `public`
+    - `"<year>"` (e.g., `"2023"`, `"2024"`, `"2025"`, `"2026"`)
   - `choices`: List of distractor choices
   - `answers`: List containing the single correct answer
 - **Body**:

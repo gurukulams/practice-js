@@ -1,16 +1,13 @@
 ---
-complexity: 'M'
 tags:
-  - science
-  - computer-science
-  - scratch
-  - 1-mark
+  - public
+  - '2026'
 choices:
-  - 'Inkscape'
-  - 'மேடை (Stage)'
-  - 'ஸ்ப்ரைட் (Sprite)'
+  - Inkscape
+  - மேடை (Stage)
+  - ஸ்ப்ரைட் (Sprite)
 answers:
-  - 'ஸ்கிரிப்ட் எடிட்டர் (Script Editor)'
+  - ஸ்கிரிப்ட் எடிட்டர் (Script Editor)
 ---
 
 ## நிரலாக்கத்தை தொகுக்கப் பயன்படுவது எது?

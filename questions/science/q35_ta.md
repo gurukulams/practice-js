@@ -1,16 +1,13 @@
 ---
-complexity: 'M'
 tags:
-  - science
-  - biology
-  - health-and-disease
-  - 1-mark
+  - public
+  - '2025'
 choices:
-  - 'மே 31'
-  - 'ஏப்ரல் 22'
-  - 'அக்டோபர் 2'
+  - மே 31
+  - ஏப்ரல் 22
+  - அக்டோபர் 2
 answers:
-  - 'டிசம்பர் 1'
+  - டிசம்பர் 1
 ---
 
 ## உலக எய்ட்ஸ் தினம் :

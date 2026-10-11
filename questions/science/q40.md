@@ -1,10 +1,7 @@
 ---
-complexity: 'M'
 tags:
-  - science
-  - physics
-  - nuclear-physics
-  - 1-mark
+  - public
+  - '2026'
 choices:
   - '8, 6'
   - '12, 4'

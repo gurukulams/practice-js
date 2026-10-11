@@ -1,16 +1,13 @@
 ---
-complexity: 'M'
 tags:
-  - science
-  - biology
-  - circulation
-  - 1-mark
+  - public
+  - '2024'
 choices:
-  - 'வெண்ட்ரிக்கிள் $\rightarrow$ ஆட்ரியம் $\rightarrow$ சிறை $\rightarrow$ தமனி'
-  - 'வெண்ட்ரிக்கிள் $\rightarrow$ சிறை $\rightarrow$ ஆட்ரியம் $\rightarrow$ தமனி'
-  - 'தமனி $\rightarrow$ ஆட்ரியம் $\rightarrow$ வெண்ட்ரிக்கிள் $\rightarrow$ சிறை'
+  - வெண்ட்ரிக்கிள் $\rightarrow$ ஆட்ரியம் $\rightarrow$ சிறை $\rightarrow$ தமனி
+  - வெண்ட்ரிக்கிள் $\rightarrow$ சிறை $\rightarrow$ ஆட்ரியம் $\rightarrow$ தமனி
+  - தமனி $\rightarrow$ ஆட்ரியம் $\rightarrow$ வெண்ட்ரிக்கிள் $\rightarrow$ சிறை
 answers:
-  - 'ஆட்ரியம் $\rightarrow$ வெண்ட்ரிக்கிள் $\rightarrow$ தமனி $\rightarrow$ சிறை'
+  - ஆட்ரியம் $\rightarrow$ வெண்ட்ரிக்கிள் $\rightarrow$ தமனி $\rightarrow$ சிறை
 ---
 
 ## இரத்த ஓட்டத்தின் சரியான வரிசை எது?

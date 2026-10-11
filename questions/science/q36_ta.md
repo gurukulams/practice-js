@@ -1,16 +1,13 @@
 ---
-complexity: 'M'
 tags:
-  - science
-  - computer-science
-  - scratch
-  - 1-mark
+  - public
+  - '2025'
 choices:
-  - 'Paint'
-  - 'PDF'
-  - 'MS Word'
+  - Paint
+  - PDF
+  - MS Word
 answers:
-  - 'Scratch'
+  - Scratch
 ---
 
 ## அசைவூட்டும் காணொளிகளை உருவாக்க பயன்படும் மென்பொருள் எது?

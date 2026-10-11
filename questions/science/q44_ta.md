@@ -1,10 +1,7 @@
 ---
-complexity: 'M'
 tags:
-  - science
-  - chemistry
-  - carbon-compounds
-  - 1-mark
+  - public
+  - '2026'
 choices:
   - '$\text{C}_2\text{H}_2$ மற்றும் $\text{C}_3\text{H}_8$'
   - '$\text{CH}_4$ மற்றும் $\text{C}_3\text{H}_8$'

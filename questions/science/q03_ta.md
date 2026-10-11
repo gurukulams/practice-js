@@ -1,16 +1,13 @@
 ---
-complexity: 'M'
 tags:
-  - science
-  - chemistry
-  - solutions
-  - 1-mark
+  - public
+  - '2023'
 choices:
-  - '2 கி'
-  - '16 கி'
-  - '8 கி'
+  - 2 கி
+  - 16 கி
+  - 8 கி
 answers:
-  - '18 கி'
+  - 18 கி
 ---
 
 ## நீரின் கிராம் மூலக்கூறு நிறை __________.
