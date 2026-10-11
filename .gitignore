@@ -4,3 +4,6 @@ dist/data
 dist/js
 dist/*.html
 question_paper_reference/
+__pycache__/
+*.pyc
+test-results/

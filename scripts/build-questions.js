@@ -94,7 +94,7 @@ const schema = {
     },
     type: {
       type: "string",
-      enum: ["CHOOSE_THE_BEST", "MULTI_CHOICE", "MATCH_THE_FOLLOWING"],
+      enum: ["CHOOSE_THE_BEST", "MULTI_CHOICE", "MATCH_THE_FOLLOWING", "DESCRIPTIVE"],
     },
     choices: {
       type: "array",
@@ -272,16 +272,16 @@ function transformMarkdown(filePath) {
     });
   };
 
+  const matches = Array.isArray(data.matches) ? data.matches : [];
   if (combinedList.length > 0) {
     question.choices = processChoices(combinedList);
     const correctCount = question.choices.filter((c) => c.answer).length;
     question.type = correctCount > 1 ? "MULTI_CHOICE" : "CHOOSE_THE_BEST";
-  }
-
-  const matches = Array.isArray(data.matches) ? data.matches : [];
-  if (matches.length > 0) {
+  } else if (matches.length > 0) {
     question.matches = processChoices(matches);
     question.type = "MATCH_THE_FOLLOWING";
+  } else {
+    question.type = data.type || "DESCRIPTIVE";
   }
 
   return question;
@@ -395,10 +395,20 @@ function throwError(file, result) {
 }
 
 function buildAll() {
+  const dataDir = path.join(PUBLIC_DIR, "data");
+  // Clean up any stale sub-questions.json or orphaned directories in PUBLIC_DIR/data
+  if (fs.existsSync(dataDir)) {
+    const existingSubQ = glob.sync("**/sub-questions.json", { cwd: dataDir, absolute: true });
+    for (const sq of existingSubQ) {
+      try { fs.unlinkSync(sq); } catch (e) {}
+    }
+  }
+
   copyImages();
   const files = glob.sync("**/*.md", { cwd: QUESTIONS_DIR, absolute: true });
   const grouped = {};
   const locales = {};
+
   const pathMap = new Set();
 
   for (const file of files) {

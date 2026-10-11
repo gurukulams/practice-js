@@ -1,0 +1,20 @@
+---
+complexity: "M"
+tags:
+  - science
+  - physics
+  - optics
+  - 1-mark
+choices:
+  - "Positive"
+  - "Negative"
+  - "Zero"
+answers:
+  - "Either positive (or) negative"
+---
+
+## Magnification of a convex lens is always :
+
+---
+
+Magnification of a convex lens can be positive (when forming a virtual and erect image) or negative (when forming a real and inverted image).
