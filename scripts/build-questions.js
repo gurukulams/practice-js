@@ -94,7 +94,7 @@ const schema = {
     },
     type: {
       type: "string",
-      enum: ["CHOOSE_THE_BEST", "MULTI_CHOICE", "MATCH_THE_FOLLOWING"],
+      enum: ["CHOOSE_THE_BEST", "MULTI_CHOICE", "MATCH_THE_FOLLOWING", "DESCRIPTIVE"],
     },
     choices: {
       type: "array",
@@ -272,16 +272,16 @@ function transformMarkdown(filePath) {
     });
   };
 
+  const matches = Array.isArray(data.matches) ? data.matches : [];
   if (combinedList.length > 0) {
     question.choices = processChoices(combinedList);
     const correctCount = question.choices.filter((c) => c.answer).length;
     question.type = correctCount > 1 ? "MULTI_CHOICE" : "CHOOSE_THE_BEST";
-  }
-
-  const matches = Array.isArray(data.matches) ? data.matches : [];
-  if (matches.length > 0) {
+  } else if (matches.length > 0) {
     question.matches = processChoices(matches);
     question.type = "MATCH_THE_FOLLOWING";
+  } else {
+    question.type = data.type || "DESCRIPTIVE";
   }
 
   return question;

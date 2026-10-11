@@ -161,6 +161,29 @@ set PUBLIC_FOLDER=<<DIR>>
 npm run watch:questions
 ```
 
+## Science Question Paper Reference (2023 – 2026)
+
+Board examination question papers for Science (`question_paper_reference/SCIENCE/`) are structured as:
+- `questions/science/` — All 1-Mark Multiple Choice Questions (`CHOOSE_THE_BEST`), e.g., `<year>-q01.md` and `<year>-q01_ta.md`.
+- `QUESTIONS.md` — Complete bilingual question bank containing all 2-mark, 4-mark, and 7-mark descriptive and numerical questions with model answers.
+
+Every 1-mark question is bilingual: English (`<year>-qXX.md`) and Unicode Tamil (`<year>-qXX_ta.md`).
+
+For full details, see the [Question Paper Guide](docs/question-paper-guide.md).
+
+### Antigravity Skill: Question Paper Importer
+
+This repo includes an Antigravity workspace skill at `.agents/skills/question-paper-importer/`.
+- **Purpose:** Parse and import future question paper PDFs into the practice-js quiz markdown protocol.
+- **Run the Importer:**
+  ```bash
+  python3 scripts/parse-science-paper.py --pdf <path-to-pdf> --year <year> --output-dir questions
+  ```
+- **Compile Questions:**
+  ```bash
+  npm run build:questions
+  ```
+
 ## License
 
 MIT
