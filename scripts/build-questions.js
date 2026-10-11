@@ -395,10 +395,20 @@ function throwError(file, result) {
 }
 
 function buildAll() {
+  const dataDir = path.join(PUBLIC_DIR, "data");
+  // Clean up any stale sub-questions.json or orphaned directories in PUBLIC_DIR/data
+  if (fs.existsSync(dataDir)) {
+    const existingSubQ = glob.sync("**/sub-questions.json", { cwd: dataDir, absolute: true });
+    for (const sq of existingSubQ) {
+      try { fs.unlinkSync(sq); } catch (e) {}
+    }
+  }
+
   copyImages();
   const files = glob.sync("**/*.md", { cwd: QUESTIONS_DIR, absolute: true });
   const grouped = {};
   const locales = {};
+
   const pathMap = new Set();
 
   for (const file of files) {

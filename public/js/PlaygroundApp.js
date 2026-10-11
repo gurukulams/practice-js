@@ -217,6 +217,7 @@
         complexity,
         locale: this.#locale,
         maxQ: maxQ,
+        shuffle: false,
         error: (msg) => this.showAlert(msg, 'danger'),
       };
   
@@ -378,13 +379,9 @@
      * @private
      */
     #setupControlListeners() {
-      this.#dom.langSelect?.addEventListener('change', (e) => {
+      this.#dom.langSelect?.addEventListener('change', async (e) => {
         const selectedLang = e.target.value;
-        localStorage.setItem(STORAGE_KEYS.LANG, selectedLang);
-        this.#locale = selectedLang;
-        this.applyPageLocale(selectedLang);
-        this.applyMode();
-        location.reload();
+        await this.changeLanguage(selectedLang);
       });
   
       this.#dom.modeSelect?.addEventListener('change', () => {
@@ -429,6 +426,7 @@
   
       const loader = new QuestionLoader();
       loader.languageCode = localStorage.getItem(STORAGE_KEYS.LANG);
+      loader.shuffleQuestions = false;
   
       try {
         const trimmedUrl = this.#dom.qPathInput.value.trim();
@@ -455,10 +453,64 @@
       }
   
       this.syncQuizSection();
-      const pm = this.#buildInstance(paramTimer, null, 'H');
+      this.applyMode();
   
       if (paramEditable === '1') {
-        pm.setEditable(true);
+        this.#practiceMakerInstance?.setEditable(true);
+      }
+    }
+  
+    /**
+     * Changes active language, reloading questions while preserving question position.
+     * Prevents random shuffling so questions match 1:1 between languages.
+     * @param {string} selectedLang - Selected language code ('en' or 'ta').
+     */
+    async changeLanguage(selectedLang) {
+      localStorage.setItem(STORAGE_KEYS.LANG, selectedLang);
+      this.#locale = selectedLang;
+      this.applyPageLocale(selectedLang);
+
+      const currentIdx = this.#practiceMakerInstance?.currentQuestionIndex ?? 0;
+      const preservedAnswers = this.#practiceMakerInstance?.userAnswers ? { ...this.#practiceMakerInstance.userAnswers } : null;
+
+      const loader = new QuestionLoader();
+      loader.languageCode = selectedLang;
+      loader.shuffleQuestions = false;
+
+      try {
+        const trimmedUrl = this.#dom.qPathInput.value.trim();
+        loader.repoUrl = `/data/${trimmedUrl}`;
+
+        const externalQuestions = await loader.loadQuestions();
+        let userQuestions = [];
+
+        try {
+          userQuestions = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_QUESTIONS)) || [];
+        } catch (e) {
+          userQuestions = [];
+        }
+
+        this.#questions = this.#assignIds([...externalQuestions, ...userQuestions], '');
+        if (this.#dom.maxQInput) {
+          this.#dom.maxQInput.placeholder = this.#questions.length;
+        }
+      } catch (e) {
+        const failMessage = (PAGE_STRINGS[this.#locale] || PAGE_STRINGS.en).loadFail;
+        this.showAlert(`${failMessage}${e.message}`, 'danger');
+        return;
+      }
+
+      this.syncQuizSection();
+      this.applyMode();
+
+      if (this.#practiceMakerInstance && this.#questions.length > 0) {
+        if (preservedAnswers) {
+          this.#practiceMakerInstance.userAnswers = preservedAnswers;
+        }
+        const targetIndex = Math.min(currentIdx, this.#practiceMakerInstance.questions.length - 1);
+        if (targetIndex >= 0) {
+          this.#practiceMakerInstance.setQuestion(targetIndex);
+        }
       }
     }
   

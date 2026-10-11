@@ -9,6 +9,15 @@
       this._repoUrl = null;
       this._languageCode = null;
       this._maxQuestions = null;
+      this._shuffle = false;
+    }
+
+    get shuffleQuestions() {
+      return this._shuffle;
+    }
+
+    set shuffleQuestions(value) {
+      this._shuffle = Boolean(value);
     }
 
     get repoUrl() {
@@ -112,11 +121,11 @@
       };
     
       const allQuestions = await loadFolderRecursively(baseUrl);
-      const shuffled = this.shuffle(allQuestions);
-    
+      const questionsToReturn = this._shuffle ? this.shuffle(allQuestions) : allQuestions;
+
       return this._maxQuestions
-        ? shuffled.slice(0, this._maxQuestions)
-        : shuffled;
+        ? questionsToReturn.slice(0, this._maxQuestions)
+        : questionsToReturn;
     }
 
     processQuestions(questions, folderUrl) {
@@ -199,6 +208,9 @@
     }
 
     shuffle(array) {
+      if (this._shuffle === false || !array || !Array.isArray(array)) {
+        return array;
+      }
       for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [array[i], array[j]] = [array[j], array[i]];

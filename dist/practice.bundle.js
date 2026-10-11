@@ -40187,7 +40187,7 @@
  </div>
  
             `;
-      this.questionPane = new QuestionPane(this.shuffle);
+      this.questionPane = new QuestionPane((arr) => this.shuffle(arr));
       this.questionPane.readOnly = true;
 
       this.addActions();
@@ -40229,6 +40229,10 @@
     }
 
     shuffle(array) {
+      if (!array || !Array.isArray(array)) return array;
+      if (this.options && this.options.shuffle === false) {
+        return array;
+      }
       for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [array[i], array[j]] = [array[j], array[i]];
@@ -40308,7 +40312,9 @@
     return filtered;
   }
 
-      this.questions = this.shuffle(filterQuestions(_questions,this.complexity, this.selectedTags, this.maxQ));
+      const filtered = filterQuestions(_questions, this.complexity, this.selectedTags, this.maxQ);
+      const shouldShuffle = this.options?.shuffle !== false;
+      this.questions = shouldShuffle ? this.shuffle(filtered) : filtered;
       this.originalQuestions = JSON.parse(JSON.stringify(_questions));
       this.currentQuestionIndex = 0;
       this.userAnswers = {};
