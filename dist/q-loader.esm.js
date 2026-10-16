@@ -213,13 +213,5 @@ const appendFullPath = (folderUrl, question) => {
   }
 }
 
-// // Example usage
-// const loader = new QuestionLoader();
-
-// loader.repoUrl = "http://localhost:3000/data/com/example";
-// const questions = await loader.loadQuestions();
-// console.log(questions);
-// // loader.languageCode = "en";
-
 export { QuestionLoader as default };
 //# sourceMappingURL=q-loader.esm.js.map
