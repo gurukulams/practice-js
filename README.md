@@ -154,10 +154,10 @@ export PUBLIC_FOLDER="<<DIR>>"
 npm run watch:questions
 ```
 
-**Windows (Cmd)**
+**Windows (Powershell)**
 ```bash
-set QUESTIONS_FOLDER=<<DIR>>
-set PUBLIC_FOLDER=<<DIR>>
+$env QUESTIONS_FOLDER=<<DIR>>
+$env PUBLIC_FOLDER=<<DIR>>
 npm run watch:questions
 ```
 
