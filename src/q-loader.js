@@ -1,10 +1,33 @@
-
-export default class QuestionLoader {
+/**
+ * Questions Loader is responsible to load, filter and shuffle questions fom repository.
+ * Sample Usage
+ * const qL = new QuestionLoader();
+ * qL.repoUrl = "";
+ * qL.languageCode = 'ta'
+ * qL.maxQuestions = 5;
+ * qL.shuffle = true;
+ * qL.tags = ["tag1","tag3"];
+ *
+ * const questionsarray = qL.loadQuestions();
+ *
+ * console.log(questionsarray);
+ */
+ export default class QuestionLoader {
   constructor() {
     this._repoUrl = null;
     this._languageCode = null;
     this._maxQuestions = null;
     this._shuffle = false;
+    this._tags = false;
+  }
+
+  get tags() {
+    return this._tags;
+  }
+
+  set tags(value) {
+    this._tags = value;
+    console.log(`tags set to: ${value}`);
   }
 
   get shuffleQuestions() {
@@ -29,7 +52,7 @@ export default class QuestionLoader {
   }
 
   set languageCode(value) {
-    this._languageCode = (value === 'en') ? '' : value;
+    this._languageCode = value === "en" ? "" : value;
     console.log(`languageCode set to: ${this._languageCode}`);
   }
 
@@ -57,7 +80,7 @@ export default class QuestionLoader {
   }
   async getQuestions() {
     const baseUrl = `${this._repoUrl}`;
-  
+
     const fetchJSON = async (url) => {
       try {
         const res = await fetch(url);
@@ -66,57 +89,63 @@ export default class QuestionLoader {
         return null;
       }
     };
-  
+
     const resolveLocalized = (localized, fallback) => {
       return localized.map((q) => (typeof q === "number" ? fallback[q] : q));
     };
-  
+
     const collectQuestions = async (folderUrl) => {
       const defaultQs = await fetchJSON(`${folderUrl}/questions.json`);
       if (!defaultQs) return [];
-  
+
       const localizedQs = this._languageCode
         ? await fetchJSON(`${folderUrl}/questions_${this._languageCode}.json`)
         : null;
-  
+
       const finalQs = localizedQs
         ? resolveLocalized(localizedQs, defaultQs)
         : defaultQs;
-  
+
       return this.processQuestions(finalQs, folderUrl);
     };
-  
+
     const loadFolderRecursively = async (folderUrl) => {
       const folderQuestions = [];
-  
+
       // 1. Collect local questions if present
       const questions = await collectQuestions(folderUrl);
       if (questions?.length) {
         folderQuestions.push(...questions);
       }
-  
+
       // 2. Fetch and traverse sub-questions index
       const subfolders = await fetchJSON(`${folderUrl}/sub-questions.json`);
-      if (!subfolders || !Array.isArray(subfolders) || subfolders.length === 0) {
+      if (
+        !subfolders ||
+        !Array.isArray(subfolders) ||
+        subfolders.length === 0
+      ) {
         return folderQuestions;
       }
-  
+
       // 3. Resolve subfolders using folderUrl
       const subFolderPromises = subfolders.map(async (sub) => {
-        const cleanSubPath = sub.startsWith('/') ? sub.slice(1) : sub;
+        const cleanSubPath = sub.startsWith("/") ? sub.slice(1) : sub;
         const subUrl = `${folderUrl}/${cleanSubPath}`; // Fixed: uses folderUrl
-  
+
         return await loadFolderRecursively(subUrl);
       });
-  
+
       const nestedResults = await Promise.all(subFolderPromises);
       nestedResults.forEach((qList) => folderQuestions.push(...qList));
-  
+
       return folderQuestions;
     };
-  
+
     const allQuestions = await loadFolderRecursively(baseUrl);
-    const questionsToReturn = this._shuffle ? this.shuffle(allQuestions) : allQuestions;
+    const questionsToReturn = this._shuffle
+      ? this.shuffle(allQuestions)
+      : allQuestions;
 
     return this._maxQuestions
       ? questionsToReturn.slice(0, this._maxQuestions)
@@ -124,61 +153,65 @@ export default class QuestionLoader {
   }
 
   processQuestions(questions, folderUrl) {
-/**
- * Browser-safe URL joiner replacing path.posix.join
- */
- const joinUrl = (base, relative) => {
-  const cleanBase = base.replace(/\/+$/, "");
-  const cleanRel = relative.replace(/^\/+/, "");
-  return `${cleanBase}/${cleanRel}`;
-};
+    /**
+     * Browser-safe URL joiner replacing path.posix.join
+     */
+    const joinUrl = (base, relative) => {
+      const cleanBase = base.replace(/\/+$/, "");
+      const cleanRel = relative.replace(/^\/+/, "");
+      return `${cleanBase}/${cleanRel}`;
+    };
 
-const appendFullPath = (folderUrl, question) => {
-  const prefixUrl = (imgPath) => {
-    if (imgPath.startsWith("http://") || imgPath.startsWith("https://")) {
-      return imgPath;
-    }
-    return joinUrl(folderUrl, imgPath);
-  };
+    const appendFullPath = (folderUrl, question) => {
+      const prefixUrl = (imgPath) => {
+        if (imgPath.startsWith("http://") || imgPath.startsWith("https://")) {
+          return imgPath;
+        }
+        return joinUrl(folderUrl, imgPath);
+      };
 
-  const prefixMarkdownImages = (text) => {
-    if (!text) return text;
-    return text.replace(
-      /!\[(.*?)\]\((.*?)\)/g,
-      (match, alt, imgUrl) => `![${alt}](${prefixUrl(imgUrl.trim())})`
-    );
-  };
+      const prefixMarkdownImages = (text) => {
+        if (!text) return text;
+        return text.replace(
+          /!\[(.*?)\]\((.*?)\)/g,
+          (match, alt, imgUrl) => `![${alt}](${prefixUrl(imgUrl.trim())})`
+        );
+      };
 
-  const updatedQuestion = JSON.parse(JSON.stringify(question));
+      const updatedQuestion = JSON.parse(JSON.stringify(question));
 
-  if (updatedQuestion.question) {
-    updatedQuestion.question = prefixMarkdownImages(updatedQuestion.question);
-  }
-
-  if (updatedQuestion.explanation) {
-    updatedQuestion.explanation = prefixMarkdownImages(updatedQuestion.explanation);
-  }
-
-  if (Array.isArray(updatedQuestion.choices)) {
-    updatedQuestion.choices = updatedQuestion.choices.map((choice) => {
-      if (choice.image) {
-        choice.image = prefixUrl(choice.image);
+      if (updatedQuestion.question) {
+        updatedQuestion.question = prefixMarkdownImages(
+          updatedQuestion.question
+        );
       }
-      return choice;
-    });
-  }
 
-  if (Array.isArray(updatedQuestion.matches)) {
-    updatedQuestion.matches = updatedQuestion.matches.map((match) => {
-      if (match.image) {
-        match.image = prefixUrl(match.image);
+      if (updatedQuestion.explanation) {
+        updatedQuestion.explanation = prefixMarkdownImages(
+          updatedQuestion.explanation
+        );
       }
-      return match;
-    });
-  }
 
-  return updatedQuestion;
-};
+      if (Array.isArray(updatedQuestion.choices)) {
+        updatedQuestion.choices = updatedQuestion.choices.map((choice) => {
+          if (choice.image) {
+            choice.image = prefixUrl(choice.image);
+          }
+          return choice;
+        });
+      }
+
+      if (Array.isArray(updatedQuestion.matches)) {
+        updatedQuestion.matches = updatedQuestion.matches.map((match) => {
+          if (match.image) {
+            match.image = prefixUrl(match.image);
+          }
+          return match;
+        });
+      }
+
+      return updatedQuestion;
+    };
     const baseId = folderUrl.split("/data/")[1];
     return questions.map((rawQ, qIndex) => {
       const q = appendFullPath(folderUrl, rawQ);
@@ -211,5 +244,57 @@ const appendFullPath = (folderUrl, question) => {
       [array[i], array[j]] = [array[j], array[i]];
     }
     return array;
+  }
+
+  /**
+   * Filters a list of questions based on a target complexity level and selected tags,
+   * and optionally caps the number of returned questions.
+   *
+   * @param {Array} questions - The list of question objects to filter.
+   * @param {string|null} targetComplexity - The complexity level ("H", "M", or null).
+   * @param {Array<string>} [selectedTags=[]] - List of tag strings that must all match.
+   * @param {number|null} [maxQ=null] - Maximum number of questions to return.
+   * @returns {Array} The filtered subset of questions.
+   */
+  filterQuestions(questions, targetComplexity, selectedTags = [], maxQ = null) {
+    if (!questions || !Array.isArray(questions)) return [];
+
+    const filtered = questions.filter((q) => {
+      // 1. Complexity Filter
+      let matchesComplexity = false;
+
+      if (targetComplexity === "H") {
+        // Include everything
+        matchesComplexity = true;
+      } else if (targetComplexity === "M") {
+        // Include questions with NO complexity or "M"
+        matchesComplexity = !q.complexity || q.complexity === "M";
+      } else {
+        // If targetComplexity is null/undefined: Include ONLY questions with NO complexity
+        matchesComplexity = !q.complexity;
+      }
+
+      if (!matchesComplexity) return false;
+
+      // 2. Tag Filter
+      // If no tags are selected, skip tag filtering
+      if (!selectedTags || selectedTags.length === 0) {
+        return true;
+      }
+
+      // Ensure q.tags exists and is an array before filtering
+      const questionTags = q.tags || [];
+
+      // AND Logic: The question must contain ALL selected tags
+      return selectedTags.every((tag) => questionTags.includes(tag));
+    });
+
+    // 3. Max Questions Cap
+    const parsedMaxQ = Number(maxQ);
+    if (Number.isInteger(parsedMaxQ) && parsedMaxQ > 0) {
+      return filtered.slice(0, parsedMaxQ);
+    }
+
+    return filtered;
   }
 }
