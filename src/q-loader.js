@@ -1,3 +1,11 @@
+import {
+  loadUserQuestions,
+  saveUserQuestion,
+  deleteUserQuestion,
+} from "./storage";
+
+const remoteQuestionsCache = new Map();
+
 /**
  * Questions Loader is responsible to load, filter and shuffle questions fom repository.
  * Sample Usage
@@ -13,12 +21,17 @@
  * console.log(questionsarray);
  */
  export default class QuestionLoader {
-  constructor() {
-    this._repoUrl = null;
-    this._languageCode = null;
-    this._maxQuestions = null;
-    this._shuffle = false;
-    this._tags = false;
+  constructor(options = {}) {
+    this._repoUrl = options.repoUrl || null;
+    this._languageCode =
+      options.languageCode === "en" ? "" : options.languageCode || null;
+    this._maxQuestions = options.maxQuestions ?? options.maxQ ?? null;
+    this._shuffle = Boolean(options.shuffleQuestions ?? options.shuffle);
+    this._tags = options.tags || [];
+    this._complexity = options.complexity ?? null;
+    this._source = options.source || "all";
+    this._includeUserQuestions = Boolean(options.includeUserQuestions);
+    this._questions = options.questions || null;
   }
 
   get tags() {
@@ -65,29 +78,49 @@
     console.log(`maxQuestions set to: ${value}`);
   }
 
-  async loadQuestions() {
-    const questions = await this.getQuestions(
-      this._repoUrl,
-      this._maxQuestions,
-      this._languageCode
+  async loadSourceQuestions() {
+    const questions = this._questions !== null
+      ? this._questions
+      : this._repoUrl
+        ? await this.getQuestions()
+        : [];
+    const allQuestions = this._includeUserQuestions
+      ? [...questions, ...loadUserQuestions().map((question) => ({
+          ...question,
+          _source: "user",
+        }))]
+      : questions;
+    this.originalQuestions = JSON.parse(JSON.stringify(allQuestions));
+    return allQuestions;
+  }
+
+  setQuestions(questions) {
+    if (!Array.isArray(questions)) {
+      throw new TypeError("Questions must be an array.");
+    }
+    this._questions = questions;
+  }
+
+  async loadQuestions(options = {}) {
+    return this.#filterQuestions(
+      await this.loadSourceQuestions(),
+      options
     );
-
-    this.originalQuestions = JSON.parse(JSON.stringify(questions));
-
-    console.log(questions);
-
-    return questions;
   }
   async getQuestions() {
     const baseUrl = `${this._repoUrl}`;
+    const cacheKey = `${baseUrl}\u0000${this._languageCode || ""}`;
+    if (remoteQuestionsCache.has(cacheKey)) {
+      return JSON.parse(JSON.stringify(remoteQuestionsCache.get(cacheKey)));
+    }
 
     const fetchJSON = async (url) => {
-      try {
-        const res = await fetch(url);
-        return res.ok ? await res.json() : null;
-      } catch {
-        return null;
+      const res = await fetch(url);
+      if (res.status === 404) return null;
+      if (!res.ok) {
+        throw new Error(`Failed to load questions (${res.status}): ${url}`);
       }
+      return res.json();
     };
 
     const resolveLocalized = (localized, fallback) => {
@@ -142,14 +175,56 @@
       return folderQuestions;
     };
 
-    const allQuestions = await loadFolderRecursively(baseUrl);
-    const questionsToReturn = this._shuffle
-      ? this.shuffle(allQuestions)
-      : allQuestions;
+    const questions = await loadFolderRecursively(baseUrl);
+    remoteQuestionsCache.set(cacheKey, questions);
+    return questions;
+  }
 
-    return this._maxQuestions
-      ? questionsToReturn.slice(0, this._maxQuestions)
-      : questionsToReturn;
+  #filterQuestions(
+    questions,
+    options = {}
+  ) {
+    if (!Array.isArray(questions)) return [];
+
+    if (options === null || typeof options !== "object") {
+      throw new TypeError("Question filter options must be an object.");
+    }
+    const {
+      complexity = this._complexity,
+      tags = this._tags,
+      maxQuestions: limit = this._maxQuestions,
+      source = this._source,
+      shuffle = this._shuffle,
+    } = options;
+
+    let filtered = questions.filter((question) => {
+      if (source === "user" && question._source !== "user") return false;
+
+      if (complexity === "H") {
+        // High includes all complexity levels.
+      } else if (complexity === "M") {
+        if (question.complexity && question.complexity !== "M") return false;
+      } else if (question.complexity) {
+        return false;
+      }
+
+      return !tags?.length || tags.every((tag) => question.tags?.includes(tag));
+    });
+
+    const parsedLimit = Number(limit);
+    if (Number.isInteger(parsedLimit) && parsedLimit > 0) {
+      filtered = filtered.slice(0, parsedLimit);
+    }
+
+    return this.shuffle(filtered, shuffle);
+  }
+
+  saveUserQuestion(question) {
+    saveUserQuestion(question);
+  }
+
+  deleteUserQuestion(id) {
+    deleteUserQuestion(id);
   }
 
   processQuestions(questions, folderUrl) {
@@ -235,8 +310,8 @@
     });
   }
 
-  shuffle(array) {
-    if (this._shuffle === false || !array || !Array.isArray(array)) {
+  shuffle(array, enabled = this._shuffle) {
+    if (!enabled || !array || !Array.isArray(array)) {
       return array;
     }
     for (let i = array.length - 1; i > 0; i--) {
@@ -246,55 +321,4 @@
     return array;
   }
 
-  /**
-   * Filters a list of questions based on a target complexity level and selected tags,
-   * and optionally caps the number of returned questions.
-   *
-   * @param {Array} questions - The list of question objects to filter.
-   * @param {string|null} targetComplexity - The complexity level ("H", "M", or null).
-   * @param {Array<string>} [selectedTags=[]] - List of tag strings that must all match.
-   * @param {number|null} [maxQ=null] - Maximum number of questions to return.
-   * @returns {Array} The filtered subset of questions.
-   */
-  filterQuestions(questions, targetComplexity, selectedTags = [], maxQ = null) {
-    if (!questions || !Array.isArray(questions)) return [];
-
-    const filtered = questions.filter((q) => {
-      // 1. Complexity Filter
-      let matchesComplexity = false;
-
-      if (targetComplexity === "H") {
-        // Include everything
-        matchesComplexity = true;
-      } else if (targetComplexity === "M") {
-        // Include questions with NO complexity or "M"
-        matchesComplexity = !q.complexity || q.complexity === "M";
-      } else {
-        // If targetComplexity is null/undefined: Include ONLY questions with NO complexity
-        matchesComplexity = !q.complexity;
-      }
-
-      if (!matchesComplexity) return false;
-
-      // 2. Tag Filter
-      // If no tags are selected, skip tag filtering
-      if (!selectedTags || selectedTags.length === 0) {
-        return true;
-      }
-
-      // Ensure q.tags exists and is an array before filtering
-      const questionTags = q.tags || [];
-
-      // AND Logic: The question must contain ALL selected tags
-      return selectedTags.every((tag) => questionTags.includes(tag));
-    });
-
-    // 3. Max Questions Cap
-    const parsedMaxQ = Number(maxQ);
-    if (Number.isInteger(parsedMaxQ) && parsedMaxQ > 0) {
-      return filtered.slice(0, parsedMaxQ);
-    }
-
-    return filtered;
-  }
 }

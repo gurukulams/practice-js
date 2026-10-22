@@ -70,8 +70,8 @@
    * Main application controller for the Playground.
    */
   export class PlaygroundApp {
-    /** @type {Array<Object>} */
-    #questions = [];
+    /** @type {Array<Object>|null} */
+    #questionsOverride = null;
     /** @type {'PRACTICE'|'QUIZ'|'EDIT'} */
     #mode = 'PRACTICE';
     /** @type {string} */
@@ -157,36 +157,6 @@
     }
   
     /**
-     * Re-assigns unique IDs to questions and their internal options/choices.
-     * @private
-     * @param {Array<Object>} questions - Raw question array.
-     * @param {string} baseId - Base identifier prefix.
-     * @returns {Array<Object>} Normalized questions with unique IDs.
-     */
-    #assignIds(questions, baseId = '') {
-      return questions.map((q, qIndex) => {
-        const questionId = `${baseId}-q${qIndex}`;
-        const choices = (q.choices || []).map((c, i) => ({
-          ...c,
-          id: `${questionId}-c${i}`,
-          questionId,
-        }));
-        const matches = (q.matches || []).map((m, i) => ({
-          ...m,
-          id: `${questionId}-m${i}`,
-          questionId,
-        }));
-  
-        return {
-          ...q,
-          id: questionId,
-          choices,
-          matches,
-        };
-      });
-    }
-  
-    /**
      * Rebuilds the current PracticeMaker instance.
      * @private
      * @param {number} timer - Quiz timer duration (seconds).
@@ -194,7 +164,7 @@
      * @param {string|null} complexity - Target question complexity level.
      * @returns {Object} Fresh PracticeMaker instance.
      */
-    #buildInstance(timer = 0, maxQ = null, complexity = null) {
+    async #buildInstance(timer = 0, maxQ = null, complexity = null) {
       const root = this.#dom['practice-main'];
   
       // Destroy existing instance to clear running timers
@@ -206,19 +176,17 @@
   
       if (root) root.innerHTML = '';
   
-      // Filter questions based on mode and options
-      let filteredQuestions = this.#questions;
-      if (this.#mode === 'EDIT') {
-        filteredQuestions = this.#questions.filter((q) => q._source === 'user');
-      }
-  
+      const questionPath = this.#dom.qPathInput?.value.trim() || '';
       const options = {
         mode: this.#mode,
         complexity,
         locale: this.#locale,
         maxQ: maxQ,
         shuffle: false,
-        error: (msg) => this.showAlert(msg, 'danger'),
+        repoUrl: this.#questionsOverride ? undefined : `/data/${questionPath}`,
+        questions: this.#questionsOverride || undefined,
+        includeUserQuestions: !this.#questionsOverride,
+        languageCode: this.#locale,
       };
   
       if (this.#mode === 'QUIZ' && timer > 0) {
@@ -228,18 +196,17 @@
       // Instantiates PracticeMaker library instance
       const pm = new PracticeMaker.default(root, options);
       pm.setEditable(this.#mode === 'EDIT');
-      pm.setQuestions(filteredQuestions);
   
       this.#practiceMakerInstance = pm;
       window.__prakticeMaker = pm; // Kept for backward compatibility with global checks
-  
+      await pm.ready;
       return pm;
     }
   
     /**
      * Applies selected configuration mode and updates UI controls.
      */
-    applyMode() {
+    async applyMode() {
       this.#mode = this.#dom.modeSelect.value;
       let timer = 0;
       let maxQ = null;
@@ -252,7 +219,7 @@
   
       if (this.#mode === 'PRACTICE') {
         const raw = parseInt(this.#dom.practiceMaxQInput.value, 10);
-        if (!isNaN(raw) && raw > 0 && raw < this.#questions.length) {
+        if (!isNaN(raw) && raw > 0) {
           maxQ = raw;
         }
       }
@@ -265,7 +232,15 @@
         maxQ = !isNaN(maxQRaw) && maxQRaw > 0 ? maxQRaw : null;
       }
   
-      this.#buildInstance(timer, maxQ, complexity);
+      try {
+        await this.#buildInstance(timer, maxQ, complexity);
+        this.syncQuizSection();
+        return true;
+      } catch (error) {
+        const failMessage = (PAGE_STRINGS[this.#locale] || PAGE_STRINGS.en).loadFail;
+        this.showAlert(`${failMessage}${error.message}`, 'danger');
+        return false;
+      }
     }
   
     /**
@@ -282,7 +257,7 @@
       this.#dom.jsonEditorSection?.classList.toggle('d-none', !isEdit);
       this.#dom.jsonBtns?.classList.toggle('d-none', !isEdit);
   
-      const totalQuestions = this.#questions.length;
+      const totalQuestions = this.#practiceMakerInstance?.originalQuestions?.length || 0;
   
       if (isPractice && this.#dom.practiceMaxQInput) {
         this.#dom.practiceMaxQInput.max = totalQuestions;
@@ -310,22 +285,23 @@
       if (!optionsModal) return;
   
       optionsModal.addEventListener('show.bs.modal', () => {
-        questionsJsonArea.value = JSON.stringify(this.#questions, null, 2);
+        const questions = this.#practiceMakerInstance?.originalQuestions || this.#questionsOverride || [];
+        questionsJsonArea.value = JSON.stringify(questions, null, 2);
         jsonErrorMsg.classList.add('d-none');
         jsonErrorMsg.textContent = '';
         this.syncQuizSection();
       });
   
-      loadJsonBtn?.addEventListener('click', () => {
+      loadJsonBtn?.addEventListener('click', async () => {
         jsonErrorMsg.classList.add('d-none');
         try {
           const parsed = JSON.parse(questionsJsonArea.value);
           if (!Array.isArray(parsed)) {
             throw new Error('Root value must be a JSON array.');
           }
-          this.#questions = parsed;
+          this.#questionsOverride = parsed;
           this.#mode = this.#dom.modeSelect.value;
-          this.applyMode();
+          if (!(await this.applyMode())) return;
   
           bootstrap.Modal.getInstance(optionsModal).hide();
           const msg = (PAGE_STRINGS[this.#locale] || PAGE_STRINGS.en).loadSuccess;
@@ -337,7 +313,8 @@
       });
   
       resetJsonBtn?.addEventListener('click', () => {
-        questionsJsonArea.value = JSON.stringify(this.#questions, null, 2);
+        const questions = this.#practiceMakerInstance?.originalQuestions || this.#questionsOverride || [];
+        questionsJsonArea.value = JSON.stringify(questions, null, 2);
         jsonErrorMsg.classList.add('d-none');
       });
   
@@ -423,37 +400,12 @@
       if (paramTimer > 0) {
         this.#dom.timerInput.value = paramTimer;
       }
-  
-      const loader = new QuestionLoader();
-      loader.languageCode = localStorage.getItem(STORAGE_KEYS.LANG);
-      loader.shuffleQuestions = false;
-  
-      try {
-        const trimmedUrl = this.#dom.qPathInput.value.trim();
-        loader.repoUrl = `/data/${trimmedUrl}`;
-        localStorage.setItem(STORAGE_KEYS.Q_PATH_URL, trimmedUrl);
-  
-        const externalQuestions = await loader.loadQuestions();
-        let userQuestions = [];
-  
-        try {
-          userQuestions = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_QUESTIONS)) || [];
-        } catch (e) {
-          userQuestions = [];
-        }
-  
-        this.#questions = this.#assignIds([...externalQuestions, ...userQuestions], '');
-        if (this.#dom.maxQInput) {
-          this.#dom.maxQInput.placeholder = this.#questions.length;
-        }
-      } catch (e) {
-        const failMessage = (PAGE_STRINGS[this.#locale] || PAGE_STRINGS.en).loadFail;
-        this.showAlert(`${failMessage}${e.message}`, 'danger');
-        this.#questions = [];
-      }
-  
+
+      this.#questionsOverride = null;
+      const trimmedUrl = this.#dom.qPathInput.value.trim();
+      localStorage.setItem(STORAGE_KEYS.Q_PATH_URL, trimmedUrl);
       this.syncQuizSection();
-      this.applyMode();
+      await this.applyMode();
   
       if (paramEditable === '1') {
         this.#practiceMakerInstance?.setEditable(true);
@@ -472,38 +424,9 @@
 
       const currentIdx = this.#practiceMakerInstance?.currentQuestionIndex ?? 0;
       const preservedAnswers = this.#practiceMakerInstance?.userAnswers ? { ...this.#practiceMakerInstance.userAnswers } : null;
+      await this.applyMode();
 
-      const loader = new QuestionLoader();
-      loader.languageCode = selectedLang;
-      loader.shuffleQuestions = false;
-
-      try {
-        const trimmedUrl = this.#dom.qPathInput.value.trim();
-        loader.repoUrl = `/data/${trimmedUrl}`;
-
-        const externalQuestions = await loader.loadQuestions();
-        let userQuestions = [];
-
-        try {
-          userQuestions = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_QUESTIONS)) || [];
-        } catch (e) {
-          userQuestions = [];
-        }
-
-        this.#questions = this.#assignIds([...externalQuestions, ...userQuestions], '');
-        if (this.#dom.maxQInput) {
-          this.#dom.maxQInput.placeholder = this.#questions.length;
-        }
-      } catch (e) {
-        const failMessage = (PAGE_STRINGS[this.#locale] || PAGE_STRINGS.en).loadFail;
-        this.showAlert(`${failMessage}${e.message}`, 'danger');
-        return;
-      }
-
-      this.syncQuizSection();
-      this.applyMode();
-
-      if (this.#practiceMakerInstance && this.#questions.length > 0) {
+      if (this.#practiceMakerInstance?.questions.length) {
         if (preservedAnswers) {
           this.#practiceMakerInstance.userAnswers = preservedAnswers;
         }
@@ -512,6 +435,7 @@
           this.#practiceMakerInstance.setQuestion(targetIndex);
         }
       }
+      this.syncQuizSection();
     }
   
     /**

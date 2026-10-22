@@ -57,21 +57,35 @@ Playwright runs on every release but is currently **non-blocking** — the suite
 <script src="dist/practice.bundle.js"></script>
 <div id="root"></div>
 <script>
-  const pm = new PracticeMaker(document.getElementById('root'), {
-    mode: 'PRACTICE', // 'PRACTICE' | 'QUIZ' | 'EDIT'
-    timer: 60,        // seconds (QUIZ only)
-    locale: 'en',     // 'en' | 'ta'
-    error: (msg) => alert(msg)
-  });
-  pm.setQuestions(questionsArray);
+  (async () => {
+    const pm = new PracticeMaker(document.getElementById('root'), {
+      repoUrl: '/data/eduction/fundamentals/material',
+      mode: 'PRACTICE', // 'PRACTICE' | 'QUIZ' | 'EDIT'
+      timer: 60,        // seconds (QUIZ only)
+      locale: 'en',     // 'en' | 'ta'
+      error: (msg) => alert(msg)
+    });
+    await pm.ready; // QuestionLoader fetches and prepares the question data
+    // For in-memory data: await pm.setQuestions(questionsArray);
+  })();
 </script>
 ```
+
+`PracticeMaker` owns the UI and delegates question fetching, localization,
+filtering, shuffling, and locally authored question persistence to
+`QuestionLoader`. Pass its data options (`repoUrl`, `languageCode`, `maxQ`,
+`maxQuestions`, `complexity`, `tags`, `shuffle`/`shuffleQuestions`, `source`,
+and `includeUserQuestions`) alongside UI options such as `mode`, `timer`, and
+`locale`. `pm.ready` resolves after the initial dataset has loaded. For
+in-memory question data, pass `questions: questionsArray`; `setQuestions(arr)`
+remains available for loading/replacing questions after initialization and
+returns a promise that resolves when the updated questions are rendered.
 
 ## API
 
 | Method | Description |
 |--------|-------------|
-| `setQuestions(arr)` | Load questions, start from Q1 |
+| `setQuestions(arr)` | Delegate loading to QuestionLoader, then render from Q1 |
 | `setEditable(bool)` | Toggle edit mode (show/hide badge, enable textarea) |
 | `destroy()` | Clear timers, clean up before re-init |
 

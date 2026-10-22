@@ -1,5 +1,4 @@
 import EasyMDE from 'easymde';
-import { saveUserQuestion } from '../storage';
 
 const TYPES = [
   { value: 'CHOOSE_THE_BEST',    label: 'Choose the Best (single correct)' },
@@ -479,7 +478,6 @@ export default class AuthorPane {
   _save() {
     const q = this._buildQuestion();
     if (!q) return;
-    saveUserQuestion(q);
     this._destroyEditors();
     this.onSave(q);
   }

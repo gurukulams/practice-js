@@ -39447,25 +39447,6 @@
   var easymdeExports = requireEasymde();
   var EasyMDE = /*@__PURE__*/getDefaultExportFromCjs(easymdeExports);
 
-  const USER_QUESTIONS_KEY = 'practiceJs_userQuestions';
-
-  function loadUserQuestions() {
-    try { return JSON.parse(localStorage.getItem(USER_QUESTIONS_KEY)) || []; }
-    catch { return []; }
-  }
-
-  function saveUserQuestion(q) {
-    const all = loadUserQuestions();
-    const idx = all.findIndex(x => x.id === q.id);
-    if (idx >= 0) all[idx] = q; else all.push(q);
-    localStorage.setItem(USER_QUESTIONS_KEY, JSON.stringify(all));
-  }
-
-  function deleteUserQuestion(id) {
-    const all = loadUserQuestions().filter(x => x.id !== id);
-    localStorage.setItem(USER_QUESTIONS_KEY, JSON.stringify(all));
-  }
-
   const TYPES = [
     { value: 'CHOOSE_THE_BEST',    label: 'Choose the Best (single correct)' },
     { value: 'MULTI_CHOICE',       label: 'Multi Choice (multiple correct)' },
@@ -39944,7 +39925,6 @@
     _save() {
       const q = this._buildQuestion();
       if (!q) return;
-      saveUserQuestion(q);
       this._destroyEditors();
       this.onSave(q);
     }
@@ -40031,14 +40011,365 @@
     return (translations[locale] && translations[locale][key]) || translations.en[key] || key;
   }
 
+  const USER_QUESTIONS_KEY = 'practiceJs_userQuestions';
+
+  function loadUserQuestions() {
+    try { return JSON.parse(localStorage.getItem(USER_QUESTIONS_KEY)) || []; }
+    catch { return []; }
+  }
+
+  function saveUserQuestion(q) {
+    const all = loadUserQuestions();
+    const idx = all.findIndex(x => x.id === q.id);
+    if (idx >= 0) all[idx] = q; else all.push(q);
+    localStorage.setItem(USER_QUESTIONS_KEY, JSON.stringify(all));
+  }
+
+  function deleteUserQuestion(id) {
+    const all = loadUserQuestions().filter(x => x.id !== id);
+    localStorage.setItem(USER_QUESTIONS_KEY, JSON.stringify(all));
+  }
+
+  const remoteQuestionsCache = new Map();
+
+  /**
+   * Questions Loader is responsible to load, filter and shuffle questions fom repository.
+   * Sample Usage
+   * const qL = new QuestionLoader();
+   * qL.repoUrl = "";
+   * qL.languageCode = 'ta'
+   * qL.maxQuestions = 5;
+   * qL.shuffle = true;
+   * qL.tags = ["tag1","tag3"];
+   *
+   * const questionsarray = qL.loadQuestions();
+   *
+   * console.log(questionsarray);
+   */
+   class QuestionLoader {
+    constructor(options = {}) {
+      this._repoUrl = options.repoUrl || null;
+      this._languageCode =
+        options.languageCode === "en" ? "" : options.languageCode || null;
+      this._maxQuestions = options.maxQuestions ?? options.maxQ ?? null;
+      this._shuffle = Boolean(options.shuffleQuestions ?? options.shuffle);
+      this._tags = options.tags || [];
+      this._complexity = options.complexity ?? null;
+      this._source = options.source || "all";
+      this._includeUserQuestions = Boolean(options.includeUserQuestions);
+      this._questions = options.questions || null;
+    }
+
+    get tags() {
+      return this._tags;
+    }
+
+    set tags(value) {
+      this._tags = value;
+      console.log(`tags set to: ${value}`);
+    }
+
+    get shuffleQuestions() {
+      return this._shuffle;
+    }
+
+    set shuffleQuestions(value) {
+      this._shuffle = Boolean(value);
+    }
+
+    get repoUrl() {
+      return this._repoUrl;
+    }
+
+    set repoUrl(value) {
+      this._repoUrl = value;
+      console.log(`repoUrl set to: ${value}`);
+    }
+
+    get languageCode() {
+      return this._languageCode;
+    }
+
+    set languageCode(value) {
+      this._languageCode = value === "en" ? "" : value;
+      console.log(`languageCode set to: ${this._languageCode}`);
+    }
+
+    get maxQuestions() {
+      return this._maxQuestions;
+    }
+
+    set maxQuestions(value) {
+      this._maxQuestions = value;
+      console.log(`maxQuestions set to: ${value}`);
+    }
+
+    async loadSourceQuestions() {
+      const questions = this._questions !== null
+        ? this._questions
+        : this._repoUrl
+          ? await this.getQuestions()
+          : [];
+      const allQuestions = this._includeUserQuestions
+        ? [...questions, ...loadUserQuestions().map((question) => ({
+            ...question,
+            _source: "user",
+          }))]
+        : questions;
+      this.originalQuestions = JSON.parse(JSON.stringify(allQuestions));
+      return allQuestions;
+    }
+
+    setQuestions(questions) {
+      if (!Array.isArray(questions)) {
+        throw new TypeError("Questions must be an array.");
+      }
+      this._questions = questions;
+    }
+
+    async loadQuestions(options = {}) {
+      return this.#filterQuestions(
+        await this.loadSourceQuestions(),
+        options
+      );
+    }
+    async getQuestions() {
+      const baseUrl = `${this._repoUrl}`;
+      const cacheKey = `${baseUrl}\u0000${this._languageCode || ""}`;
+      if (remoteQuestionsCache.has(cacheKey)) {
+        return JSON.parse(JSON.stringify(remoteQuestionsCache.get(cacheKey)));
+      }
+
+      const fetchJSON = async (url) => {
+        const res = await fetch(url);
+        if (res.status === 404) return null;
+        if (!res.ok) {
+          throw new Error(`Failed to load questions (${res.status}): ${url}`);
+        }
+        return res.json();
+      };
+
+      const resolveLocalized = (localized, fallback) => {
+        return localized.map((q) => (typeof q === "number" ? fallback[q] : q));
+      };
+
+      const collectQuestions = async (folderUrl) => {
+        const defaultQs = await fetchJSON(`${folderUrl}/questions.json`);
+        if (!defaultQs) return [];
+
+        const localizedQs = this._languageCode
+          ? await fetchJSON(`${folderUrl}/questions_${this._languageCode}.json`)
+          : null;
+
+        const finalQs = localizedQs
+          ? resolveLocalized(localizedQs, defaultQs)
+          : defaultQs;
+
+        return this.processQuestions(finalQs, folderUrl);
+      };
+
+      const loadFolderRecursively = async (folderUrl) => {
+        const folderQuestions = [];
+
+        // 1. Collect local questions if present
+        const questions = await collectQuestions(folderUrl);
+        if (questions?.length) {
+          folderQuestions.push(...questions);
+        }
+
+        // 2. Fetch and traverse sub-questions index
+        const subfolders = await fetchJSON(`${folderUrl}/sub-questions.json`);
+        if (
+          !subfolders ||
+          !Array.isArray(subfolders) ||
+          subfolders.length === 0
+        ) {
+          return folderQuestions;
+        }
+
+        // 3. Resolve subfolders using folderUrl
+        const subFolderPromises = subfolders.map(async (sub) => {
+          const cleanSubPath = sub.startsWith("/") ? sub.slice(1) : sub;
+          const subUrl = `${folderUrl}/${cleanSubPath}`; // Fixed: uses folderUrl
+
+          return await loadFolderRecursively(subUrl);
+        });
+
+        const nestedResults = await Promise.all(subFolderPromises);
+        nestedResults.forEach((qList) => folderQuestions.push(...qList));
+
+        return folderQuestions;
+      };
+
+      const questions = await loadFolderRecursively(baseUrl);
+      remoteQuestionsCache.set(cacheKey, questions);
+      return questions;
+    }
+
+    #filterQuestions(
+      questions,
+      options = {}
+    ) {
+      if (!Array.isArray(questions)) return [];
+
+      if (options === null || typeof options !== "object") {
+        throw new TypeError("Question filter options must be an object.");
+      }
+      const {
+        complexity = this._complexity,
+        tags = this._tags,
+        maxQuestions: limit = this._maxQuestions,
+        source = this._source,
+        shuffle = this._shuffle,
+      } = options;
+
+      let filtered = questions.filter((question) => {
+        if (source === "user" && question._source !== "user") return false;
+
+        if (complexity === "H") ; else if (complexity === "M") {
+          if (question.complexity && question.complexity !== "M") return false;
+        } else if (question.complexity) {
+          return false;
+        }
+
+        return !tags?.length || tags.every((tag) => question.tags?.includes(tag));
+      });
+
+      const parsedLimit = Number(limit);
+      if (Number.isInteger(parsedLimit) && parsedLimit > 0) {
+        filtered = filtered.slice(0, parsedLimit);
+      }
+
+      return this.shuffle(filtered, shuffle);
+    }
+
+    saveUserQuestion(question) {
+      saveUserQuestion(question);
+    }
+
+    deleteUserQuestion(id) {
+      deleteUserQuestion(id);
+    }
+
+    processQuestions(questions, folderUrl) {
+      /**
+       * Browser-safe URL joiner replacing path.posix.join
+       */
+      const joinUrl = (base, relative) => {
+        const cleanBase = base.replace(/\/+$/, "");
+        const cleanRel = relative.replace(/^\/+/, "");
+        return `${cleanBase}/${cleanRel}`;
+      };
+
+      const appendFullPath = (folderUrl, question) => {
+        const prefixUrl = (imgPath) => {
+          if (imgPath.startsWith("http://") || imgPath.startsWith("https://")) {
+            return imgPath;
+          }
+          return joinUrl(folderUrl, imgPath);
+        };
+
+        const prefixMarkdownImages = (text) => {
+          if (!text) return text;
+          return text.replace(
+            /!\[(.*?)\]\((.*?)\)/g,
+            (match, alt, imgUrl) => `![${alt}](${prefixUrl(imgUrl.trim())})`
+          );
+        };
+
+        const updatedQuestion = JSON.parse(JSON.stringify(question));
+
+        if (updatedQuestion.question) {
+          updatedQuestion.question = prefixMarkdownImages(
+            updatedQuestion.question
+          );
+        }
+
+        if (updatedQuestion.explanation) {
+          updatedQuestion.explanation = prefixMarkdownImages(
+            updatedQuestion.explanation
+          );
+        }
+
+        if (Array.isArray(updatedQuestion.choices)) {
+          updatedQuestion.choices = updatedQuestion.choices.map((choice) => {
+            if (choice.image) {
+              choice.image = prefixUrl(choice.image);
+            }
+            return choice;
+          });
+        }
+
+        if (Array.isArray(updatedQuestion.matches)) {
+          updatedQuestion.matches = updatedQuestion.matches.map((match) => {
+            if (match.image) {
+              match.image = prefixUrl(match.image);
+            }
+            return match;
+          });
+        }
+
+        return updatedQuestion;
+      };
+      const baseId = folderUrl.split("/data/")[1];
+      return questions.map((rawQ, qIndex) => {
+        const q = appendFullPath(folderUrl, rawQ);
+        const questionId = `${baseId}-q${qIndex}`;
+        const choices = (q.choices || []).map((c, i) => ({
+          ...c,
+          id: `${questionId}-c${i}`,
+          questionId,
+        }));
+        const matches = (q.matches || []).map((m, i) => ({
+          ...m,
+          id: `${questionId}-m${i}`,
+          questionId,
+        }));
+        return {
+          ...q,
+          id: questionId,
+          choices: choices,
+          matches: matches,
+        };
+      });
+    }
+
+    shuffle(array, enabled = this._shuffle) {
+      if (!enabled || !array || !Array.isArray(array)) {
+        return array;
+      }
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+  }
+
   class PracticeMaker {
     constructor(_contentRoot, _options) {
-      this.options = _options;
-      this.mode = (_options && _options.mode) ? _options.mode : 'PRACTICE';
-      this.complexity = (_options && _options.complexity) ? _options.complexity:null;
-      this.maxQ = (_options && _options.maxQ) ? _options.maxQ:null;
-      this.timer = (_options && _options.timer) ? _options.timer : null;
-      this.locale = (_options && _options.locale) ? _options.locale : 'en';
+      this.options = _options || {};
+      this.mode = this.options.mode || 'PRACTICE';
+      this.complexity = this.options.complexity ?? null;
+      this.maxQ = this.options.maxQuestions ?? this.options.maxQ ?? null;
+      this.timer = this.options.timer || null;
+      this.locale = this.options.locale || 'en';
+      this.shuffleQuestions =
+        this.options.shuffleQuestions ?? this.options.shuffle ?? true;
+      this.includeUserQuestions =
+        this.options.includeUserQuestions ?? Boolean(this.options.repoUrl || this.mode === 'EDIT');
+      this.questionLoader = new QuestionLoader({
+        repoUrl: this.options.repoUrl,
+        languageCode: this.options.languageCode ?? this.locale,
+        questions: this.options.questions,
+        includeUserQuestions: this.includeUserQuestions,
+        source: this.options.source || (this.mode === 'EDIT' ? 'user' : 'all'),
+        complexity: this.complexity,
+        maxQuestions: this.maxQ,
+        tags: this.options.tags,
+        shuffle: this.shuffleQuestions,
+      });
       const L = (key) => t(this.locale, key);
       _contentRoot.innerHTML = `
     <div id="content" class="d-none" data-type="question">
@@ -40214,7 +40545,7 @@
         const selectedTagsParam = params.get("tags");
         
         this.selectedTags = selectedTagsParam ? selectedTagsParam.split(",") : [];
-        this.setQuestions(this.originalQuestions);
+        this.loadQuestions();
       });
 
       // Keep tag selection in sync with browser Back/Forward, since tag
@@ -40223,9 +40554,30 @@
         this.urlParams = new URLSearchParams(window.location.search);
         const tagsParam = this.urlParams.get("tags");
         this.selectedTags = tagsParam ? tagsParam.split(",") : [];
-        if (this.originalQuestions) this.setQuestions(this.originalQuestions);
+        if (this.originalQuestions) this.loadQuestions();
       };
       window.addEventListener('popstate', this._popstateHandler);
+
+      this.ready =
+        this.options.repoUrl ||
+        Array.isArray(this.options.questions) ||
+        this.includeUserQuestions
+        ? this.loadQuestions()
+        : Promise.resolve(this);
+    }
+
+    async loadQuestions() {
+      try {
+        const questions = await this.questionLoader.loadQuestions({
+          tags: this.selectedTags,
+        });
+        this.originalQuestions = this.questionLoader.originalQuestions;
+        this._renderQuestions(questions);
+        return this;
+      } catch (error) {
+        this.options.error?.(`Failed to load questions: ${error.message}`);
+        throw error;
+      }
     }
 
     shuffle(array) {
@@ -40253,69 +40605,16 @@
         // Clear hash cleanly without triggering jump-to-top behavior
         history.replaceState(null, "", window.location.pathname + window.location.search);
       }
-      this.setQuestions(this.originalQuestions);
+      this.loadQuestions();
     }
 
-    setQuestions(_questions) {
-      
-
-      
-      /**
-   * Filters a list of questions based on a target complexity level and selected tags,
-   * and optionally caps the number of returned questions.
-   * 
-   * @param {Array} questions - The list of question objects to filter.
-   * @param {string|null} targetComplexity - The complexity level ("H", "M", or null).
-   * @param {Array<string>} [selectedTags=[]] - List of tag strings that must all match.
-   * @param {number|null} [maxQ=null] - Maximum number of questions to return.
-   * @returns {Array} The filtered subset of questions.
-   */
-  function filterQuestions(questions, targetComplexity, selectedTags = [], maxQ = null) {
-    if (!questions || !Array.isArray(questions)) return [];
-
-    const filtered = questions.filter(q => {
-      // 1. Complexity Filter
-      let matchesComplexity = false;
-
-      if (targetComplexity === "H") {
-        // Include everything
-        matchesComplexity = true; 
-      } else if (targetComplexity === "M") {
-        // Include questions with NO complexity or "M"
-        matchesComplexity = !q.complexity || q.complexity === "M"; 
-      } else {
-        // If targetComplexity is null/undefined: Include ONLY questions with NO complexity
-        matchesComplexity = !q.complexity; 
-      }
-
-      if (!matchesComplexity) return false;
-
-      // 2. Tag Filter
-      // If no tags are selected, skip tag filtering
-      if (!selectedTags || selectedTags.length === 0) {
-        return true;
-      }
-
-      // Ensure q.tags exists and is an array before filtering
-      const questionTags = q.tags || [];
-
-      // AND Logic: The question must contain ALL selected tags
-      return selectedTags.every(tag => questionTags.includes(tag));
-    });
-
-    // 3. Max Questions Cap
-    const parsedMaxQ = Number(maxQ);
-    if (Number.isInteger(parsedMaxQ) && parsedMaxQ > 0) {
-      return filtered.slice(0, parsedMaxQ);
+    setQuestions(questions) {
+      this.questionLoader.setQuestions(questions);
+      return this.loadQuestions();
     }
 
-    return filtered;
-  }
-
-      const filtered = filterQuestions(_questions, this.complexity, this.selectedTags, this.maxQ);
-      const shouldShuffle = this.options?.shuffle !== false;
-      this.questions = shouldShuffle ? this.shuffle(filtered) : filtered;
-      this.originalQuestions = JSON.parse(JSON.stringify(_questions));
+    _renderQuestions(questions) {
+      this.questions = questions;
       this.currentQuestionIndex = 0;
       this.userAnswers = {};
 
@@ -40749,12 +41048,16 @@
         onFormReady: () => showFormFab(),
         onPickerReady: () => showPickerFab(),
         onSave: (q) => {
+          this.questionLoader.saveUserQuestion(q);
           container.classList.add('d-none');
           this._authorPane = null;
           restoreFab();
           const idx = this.questions.findIndex(x => x.id === q.id);
           if (idx >= 0) this.questions[idx] = q;
           else this.questions.push(q);
+          const originalIndex = this.originalQuestions.findIndex(x => x.id === q.id);
+          if (originalIndex >= 0) this.originalQuestions[originalIndex] = q;
+          else this.originalQuestions.push(q);
           this.setQuestion(this.questions.findIndex(x => x.id === q.id));
           document.getElementById('content').classList.remove('d-none');
           document.getElementById('editControls').classList.remove('d-none');

@@ -1,18 +1,38 @@
 import QuestionPane from "./components/QuestionPane";
 import AuthorPane from "./components/AuthorPane";
 import { t } from "./i18n";
-import { loadUserQuestions, saveUserQuestion, deleteUserQuestion } from "./storage";
+import QuestionLoader from "./q-loader";
+import {
+  loadUserQuestions,
+  saveUserQuestion,
+  deleteUserQuestion,
+} from "./storage";
 
 export { loadUserQuestions, saveUserQuestion, deleteUserQuestion };
 
 export default class PracticeMaker {
   constructor(_contentRoot, _options) {
-    this.options = _options;
-    this.mode = (_options && _options.mode) ? _options.mode : 'PRACTICE';
-    this.complexity = (_options && _options.complexity) ? _options.complexity:null;
-    this.maxQ = (_options && _options.maxQ) ? _options.maxQ:null;
-    this.timer = (_options && _options.timer) ? _options.timer : null;
-    this.locale = (_options && _options.locale) ? _options.locale : 'en';
+    this.options = _options || {};
+    this.mode = this.options.mode || 'PRACTICE';
+    this.complexity = this.options.complexity ?? null;
+    this.maxQ = this.options.maxQuestions ?? this.options.maxQ ?? null;
+    this.timer = this.options.timer || null;
+    this.locale = this.options.locale || 'en';
+    this.shuffleQuestions =
+      this.options.shuffleQuestions ?? this.options.shuffle ?? true;
+    this.includeUserQuestions =
+      this.options.includeUserQuestions ?? Boolean(this.options.repoUrl || this.mode === 'EDIT');
+    this.questionLoader = new QuestionLoader({
+      repoUrl: this.options.repoUrl,
+      languageCode: this.options.languageCode ?? this.locale,
+      questions: this.options.questions,
+      includeUserQuestions: this.includeUserQuestions,
+      source: this.options.source || (this.mode === 'EDIT' ? 'user' : 'all'),
+      complexity: this.complexity,
+      maxQuestions: this.maxQ,
+      tags: this.options.tags,
+      shuffle: this.shuffleQuestions,
+    });
     const L = (key) => t(this.locale, key);
     _contentRoot.innerHTML = `
     <div id="content" class="d-none" data-type="question">
@@ -188,7 +208,7 @@ export default class PracticeMaker {
       const selectedTagsParam = params.get("tags");
       
       this.selectedTags = selectedTagsParam ? selectedTagsParam.split(",") : [];
-      this.setQuestions(this.originalQuestions);
+      this.loadQuestions();
     });
 
     // Keep tag selection in sync with browser Back/Forward, since tag
@@ -197,9 +217,30 @@ export default class PracticeMaker {
       this.urlParams = new URLSearchParams(window.location.search);
       const tagsParam = this.urlParams.get("tags");
       this.selectedTags = tagsParam ? tagsParam.split(",") : [];
-      if (this.originalQuestions) this.setQuestions(this.originalQuestions);
+      if (this.originalQuestions) this.loadQuestions();
     };
     window.addEventListener('popstate', this._popstateHandler);
+
+    this.ready =
+      this.options.repoUrl ||
+      Array.isArray(this.options.questions) ||
+      this.includeUserQuestions
+      ? this.loadQuestions()
+      : Promise.resolve(this);
+  }
+
+  async loadQuestions() {
+    try {
+      const questions = await this.questionLoader.loadQuestions({
+        tags: this.selectedTags,
+      });
+      this.originalQuestions = this.questionLoader.originalQuestions;
+      this._renderQuestions(questions);
+      return this;
+    } catch (error) {
+      this.options.error?.(`Failed to load questions: ${error.message}`);
+      throw error;
+    }
   }
 
   shuffle(array) {
@@ -227,69 +268,16 @@ export default class PracticeMaker {
       // Clear hash cleanly without triggering jump-to-top behavior
       history.replaceState(null, "", window.location.pathname + window.location.search);
     }
-    this.setQuestions(this.originalQuestions);
+    this.loadQuestions();
   }
 
-  setQuestions(_questions) {
-    
-
-    
-    /**
- * Filters a list of questions based on a target complexity level and selected tags,
- * and optionally caps the number of returned questions.
- * 
- * @param {Array} questions - The list of question objects to filter.
- * @param {string|null} targetComplexity - The complexity level ("H", "M", or null).
- * @param {Array<string>} [selectedTags=[]] - List of tag strings that must all match.
- * @param {number|null} [maxQ=null] - Maximum number of questions to return.
- * @returns {Array} The filtered subset of questions.
- */
-function filterQuestions(questions, targetComplexity, selectedTags = [], maxQ = null) {
-  if (!questions || !Array.isArray(questions)) return [];
-
-  const filtered = questions.filter(q => {
-    // 1. Complexity Filter
-    let matchesComplexity = false;
-
-    if (targetComplexity === "H") {
-      // Include everything
-      matchesComplexity = true; 
-    } else if (targetComplexity === "M") {
-      // Include questions with NO complexity or "M"
-      matchesComplexity = !q.complexity || q.complexity === "M"; 
-    } else {
-      // If targetComplexity is null/undefined: Include ONLY questions with NO complexity
-      matchesComplexity = !q.complexity; 
-    }
-
-    if (!matchesComplexity) return false;
-
-    // 2. Tag Filter
-    // If no tags are selected, skip tag filtering
-    if (!selectedTags || selectedTags.length === 0) {
-      return true;
-    }
-
-    // Ensure q.tags exists and is an array before filtering
-    const questionTags = q.tags || [];
-
-    // AND Logic: The question must contain ALL selected tags
-    return selectedTags.every(tag => questionTags.includes(tag));
-  });
-
-  // 3. Max Questions Cap
-  const parsedMaxQ = Number(maxQ);
-  if (Number.isInteger(parsedMaxQ) && parsedMaxQ > 0) {
-    return filtered.slice(0, parsedMaxQ);
+  setQuestions(questions) {
+    this.questionLoader.setQuestions(questions);
+    return this.loadQuestions();
   }
 
-  return filtered;
-}
-
-    const filtered = filterQuestions(_questions, this.complexity, this.selectedTags, this.maxQ);
-    const shouldShuffle = this.options?.shuffle !== false;
-    this.questions = shouldShuffle ? this.shuffle(filtered) : filtered;
-    this.originalQuestions = JSON.parse(JSON.stringify(_questions));
+  _renderQuestions(questions) {
+    this.questions = questions;
     this.currentQuestionIndex = 0;
     this.userAnswers = {};
 
@@ -723,12 +711,16 @@ if (q.tags?.length) {
       onFormReady: () => showFormFab(),
       onPickerReady: () => showPickerFab(),
       onSave: (q) => {
+        this.questionLoader.saveUserQuestion(q);
         container.classList.add('d-none');
         this._authorPane = null;
         restoreFab();
         const idx = this.questions.findIndex(x => x.id === q.id);
         if (idx >= 0) this.questions[idx] = q;
         else this.questions.push(q);
+        const originalIndex = this.originalQuestions.findIndex(x => x.id === q.id);
+        if (originalIndex >= 0) this.originalQuestions[originalIndex] = q;
+        else this.originalQuestions.push(q);
         this.setQuestion(this.questions.findIndex(x => x.id === q.id));
         document.getElementById('content').classList.remove('d-none');
         document.getElementById('editControls').classList.remove('d-none');
