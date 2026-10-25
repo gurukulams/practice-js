@@ -273,16 +273,22 @@ function transformMarkdown(filePath) {
   };
 
   const matches = Array.isArray(data.matches) ? data.matches : [];
+
   if (combinedList.length > 0) {
     question.choices = processChoices(combinedList);
     const correctCount = question.choices.filter((c) => c.answer).length;
     question.type = correctCount > 1 ? "MULTI_CHOICE" : "CHOOSE_THE_BEST";
-  } else if (matches.length > 0) {
+  } 
+
+  if (matches.length > 0) {
     question.matches = processChoices(matches);
     question.type = "MATCH_THE_FOLLOWING";
-  } else {
+  }
+  else {
     question.type = data.type || "DESCRIPTIVE";
   }
+
+  console.log(question);
 
   return question;
 }
