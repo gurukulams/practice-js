@@ -15,9 +15,7 @@ export default class PlaygroundApp {
 
         const options = {
             mode: 'PRACTICE',
-            category: 'eduction',
-            baseUrl: '/',
-            questionsUrl: '/data/eduction'
+            repoUrl: '/data/eduction/fundamentals/material'
         };
 
         this.practiceMaker = new PracticeMaker.default(container, options);
