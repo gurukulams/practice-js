@@ -284,11 +284,11 @@ function transformMarkdown(filePath) {
     question.matches = processChoices(matches);
     question.type = "MATCH_THE_FOLLOWING";
   }
-  else {
-    question.type = data.type || "DESCRIPTIVE";
-  }
 
-  console.log(question);
+  // else {
+  //   question.type = data.type || "DESCRIPTIVE";
+  // }
+
 
   return question;
 }
