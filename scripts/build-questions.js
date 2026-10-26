@@ -8,12 +8,12 @@
  *    For the questions that doesn ot have language specific content, it uses the corresponding index from questions.json
  * 3. sub-questions.json - JSON Array of all the subfolders that have questions.json
  */
- import fs from 'node:fs';
- import path from 'node:path';
- import matter from 'gray-matter';
- import { glob } from 'glob';
- import chokidar from 'chokidar';
- import { validate } from 'jsonschema';
+import fs from "node:fs";
+import path from "node:path";
+import matter from "gray-matter";
+import { glob } from "glob";
+import chokidar from "chokidar";
+import { validate } from "jsonschema";
 
 // === Configurable questions folder ===
 const QUESTIONS_DIR = process.env.QUESTIONS_FOLDER
@@ -25,12 +25,15 @@ const PUBLIC_DIR = process.env.PUBLIC_FOLDER
   ? path.resolve(process.env.PUBLIC_FOLDER)
   : "dist";
 
-const IMAGE_EXTENSIONS = new Set(['.jpeg', '.jpg', '.png', '.svg']);  
+const IMAGE_EXTENSIONS = new Set([".jpeg", ".jpg", ".png", ".svg"]);
 
 // Filename validation: Allows lowercase letters, numbers, hyphens, and underscores
 const VALID_FILENAME_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*(_[a-z]{2})?$/;
 
-function copyImages(srcDir = QUESTIONS_DIR, destDir = path.join(PUBLIC_DIR, 'data')) {
+function copyImages(
+  srcDir = QUESTIONS_DIR,
+  destDir = path.join(PUBLIC_DIR, "data")
+) {
   if (!fs.existsSync(srcDir)) {
     console.warn(`Source folder does not exist: ${srcDir}`);
     return;
@@ -48,19 +51,21 @@ function copyImages(srcDir = QUESTIONS_DIR, destDir = path.join(PUBLIC_DIR, 'dat
         console.error(`❌ Invalid folder name: ${entry.name} in ${srcDir}`);
         process.exit(1);
       }
-      
+
       // Recursively process valid subdirectories
       copyImages(srcPath, destPath);
     } else if (entry.isFile()) {
       const ext = path.extname(entry.name).toLowerCase();
-      
+
       if (IMAGE_EXTENSIONS.has(ext)) {
         // Extract base filename without extension
         const baseName = path.basename(entry.name, ext);
 
         // Validate image base filename
-        if (!VALID_FILENAME_REGEX.test(baseName)) {          
-          console.error(`❌ Invalid image filename: ${entry.name} in ${srcDir}`);
+        if (!VALID_FILENAME_REGEX.test(baseName)) {
+          console.error(
+            `❌ Invalid image filename: ${entry.name} in ${srcDir}`
+          );
           process.exit(1);
         }
 
@@ -82,11 +87,12 @@ const schema = {
     explanation: { type: "string" },
     tags: {
       type: "array",
-      description: "List of tags associated with the question, supporting Markdown strings.",
+      description:
+        "List of tags associated with the question, supporting Markdown strings.",
       items: {
-        type: "string"
+        type: "string",
       },
-      uniqueItems: true
+      uniqueItems: true,
     },
     complexity: {
       type: "string",
@@ -94,7 +100,12 @@ const schema = {
     },
     type: {
       type: "string",
-      enum: ["CHOOSE_THE_BEST", "MULTI_CHOICE", "MATCH_THE_FOLLOWING", "DESCRIPTIVE"],
+      enum: [
+        "CHOOSE_THE_BEST",
+        "MULTI_CHOICE",
+        "MATCH_THE_FOLLOWING",
+        "DESCRIPTIVE",
+      ],
     },
     choices: {
       type: "array",
@@ -127,7 +138,6 @@ const schema = {
   additionalProperties: false,
 };
 
-
 function transformMarkdown(filePath) {
   const raw = fs.readFileSync(filePath, "utf8");
   const { data, content } = matter(raw);
@@ -156,7 +166,7 @@ function transformMarkdown(filePath) {
       const langBaseName = baseName.endsWith(`_${langSuffix}`)
         ? baseName
         : `${baseName}_${langSuffix}`;
-      
+
       const langImgPath = `${langBaseName}${ext}`;
       const fullLangPath = path.resolve(fileDir, langImgPath);
 
@@ -174,7 +184,7 @@ function transformMarkdown(filePath) {
     // 3. Error out if neither exists
     console.error(
       `❌ Image resolution error in file: ${filePath}\n` +
-      `   Referenced image "${imgUrl}" (or localized variant) does not exist in: ${fileDir}`
+        `   Referenced image "${imgUrl}" (or localized variant) does not exist in: ${fileDir}`
     );
     process.exit(1);
   };
@@ -251,7 +261,7 @@ function transformMarkdown(filePath) {
 
         if (imgMatch) {
           rawLabel = imgMatch[1].trim();
-          
+
           // Resolve and assign localized image path if available
           imageUrl = resolveAndValidateImage(imgMatch[2].trim());
         }
@@ -278,7 +288,7 @@ function transformMarkdown(filePath) {
     question.choices = processChoices(combinedList);
     const correctCount = question.choices.filter((c) => c.answer).length;
     question.type = correctCount > 1 ? "MULTI_CHOICE" : "CHOOSE_THE_BEST";
-  } 
+  }
 
   if (matches.length > 0) {
     question.matches = processChoices(matches);
@@ -289,27 +299,26 @@ function transformMarkdown(filePath) {
   //   question.type = data.type || "DESCRIPTIVE";
   // }
 
-
   return question;
 }
 
 function autoFix(file, result, question) {
-  console.log("Auto fixing "+ file);
+  console.log("Auto fixing " + file);
   let fixAvailable = false;
 
   for (const err of result.errors) {
     if (err.message.indexOf("duplicate") != -1) {
       if (err.property === "instance.choices") {
         question.choices = removeDuplicates(question.choices);
-      } 
+      }
       if (err.property === "instance.matches") {
         question.matches = removeDuplicates(question.matches);
-      } 
+      }
       fixAvailable = true;
-    } 
+    }
   }
 
-  if(fixAvailable) {
+  if (fixAvailable) {
     fixMarkdown(file, question);
   } else {
     throwError(file, result);
@@ -335,11 +344,16 @@ function fixMarkdown(file, question) {
   const matches = question.matches ? question.matches.map((c) => c.label) : [];
 
   // Extract tags, format strings/objects, and remove duplicates using Set
-  const rawTags = question.tags && Array.isArray(question.tags)
-    ? question.tags.map((t) => (typeof t === "object" ? t.label || t.name : t))
-    : [];
+  const rawTags =
+    question.tags && Array.isArray(question.tags)
+      ? question.tags.map((t) =>
+          typeof t === "object" ? t.label || t.name : t
+        )
+      : [];
 
-  const tags = [...new Set(rawTags.map((tag) => tag.toString().trim()))].filter(Boolean);
+  const tags = [...new Set(rawTags.map((tag) => tag.toString().trim()))].filter(
+    Boolean
+  );
 
   // 2. Prepare front-matter (Exclude explanation from here)
   const data = {
@@ -416,61 +430,49 @@ function throwError(file, result) {
  * Output:
  *   dist/data/q-map.json
  */
- function createQuestionMap(dataFolder) {
-
+function createQuestionMap(dataFolder) {
   function scanFolder(folder) {
-      const entries = fs.readdirSync(folder, {
-          withFileTypes: true
-      });
+    const entries = fs.readdirSync(folder, {
+      withFileTypes: true,
+    });
 
-      const result = {};
+    const result = {};
 
-      for (const entry of entries) {
-          if (!entry.isDirectory()) continue;
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
 
-          const childPath = path.join(folder, entry.name);
-          const children = scanFolder(childPath);
+      const childPath = path.join(folder, entry.name);
+      const children = scanFolder(childPath);
 
-          const hasQuestions = fs.existsSync(
-              path.join(childPath, "questions.json")
-          );
+      const hasQuestions = fs.existsSync(
+        path.join(childPath, "questions.json")
+      );
 
-          // Include folders with children or questions.json
-          if (Object.keys(children).length > 0 || hasQuestions) {
-              result[entry.name] = children;
-          }
+      // Include folders with children or questions.json
+      if (Object.keys(children).length > 0 || hasQuestions) {
+        result[entry.name] = children;
       }
+    }
 
-      return result;
+    return result;
   }
 
   if (!fs.existsSync(dataFolder)) {
-      console.warn(`Question map skipped. Folder not found: ${dataFolder}`);
-      return;
+    console.warn(`Question map skipped. Folder not found: ${dataFolder}`);
+    return;
   }
 
   const questionMap = scanFolder(dataFolder);
 
   const outputFile = path.join(dataFolder, "q-map.json");
 
-  fs.writeFileSync(
-      outputFile,
-      JSON.stringify(questionMap, null, 2),
-      "utf8"
-  );
+  fs.writeFileSync(outputFile, JSON.stringify(questionMap, null, 2), "utf8");
 
   console.log(`✅ Generated: ${outputFile}`);
 }
 
 function buildAll() {
   const dataDir = path.join(PUBLIC_DIR, "data");
-  // Clean up any stale sub-questions.json or orphaned directories in PUBLIC_DIR/data
-  if (fs.existsSync(dataDir)) {
-    const existingSubQ = glob.sync("**/sub-questions.json", { cwd: dataDir, absolute: true });
-    for (const sq of existingSubQ) {
-      try { fs.unlinkSync(sq); } catch (e) {}
-    }
-  }
 
   copyImages();
   const files = glob.sync("**/*.md", { cwd: QUESTIONS_DIR, absolute: true });
@@ -582,56 +584,7 @@ function buildAll() {
     }
   }
 
-// Generate Sub Questions.
-const subQMap = {};
-
-// Build a set of all unique directory paths that exist under QUESTIONS_DIR
-const allDirs = new Set();
-for (const file of files) {
-  const rel = path.relative(QUESTIONS_DIR, file);
-  let dir = path.dirname(rel);
-  
-  // Add current directory and all ancestor directories up to root "."
-  while (dir && dir !== ".") {
-    allDirs.add(dir.split(path.sep).join(path.posix.sep));
-    const parent = path.dirname(dir);
-    dir = parent === dir ? "." : parent;
-  }
-}
-
-// Populate parent-to-child relationships for every directory
-for (const dir of allDirs) {
-  const parentDir = path.dirname(dir);
-  const dirName = path.basename(dir);
-
-  // Parent path inside PUBLIC_DIR/data/
-  const parentOutDir = parentDir === "."
-    ? path.join(PUBLIC_DIR, "data")
-    : path.join(PUBLIC_DIR, "data", parentDir);
-
-  if (!subQMap[parentOutDir]) {
-    subQMap[parentOutDir] = [];
-  }
-
-  if (!subQMap[parentOutDir].includes(dirName)) {
-    subQMap[parentOutDir].push(dirName);
-  }
-}
-
-// Write sub-questions.json for all parent directories
-for (const dir in subQMap) {
-  if (subQMap[dir].length > 0) {
-    fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(
-      path.join(dir, "sub-questions.json"),
-      JSON.stringify(subQMap[dir].sort(), null, 0)
-    );
-    console.log(`✅ Generated: ${path.join(dir, "sub-questions.json")}`);
-  }
-}
-
-createQuestionMap(dataDir);
-
+  createQuestionMap(dataDir);
 }
 
 // === CLI flag check ===

@@ -106,78 +106,172 @@ const remoteQuestionsCache = new Map();
       options
     );
   }
-  async getQuestions() {
-    const baseUrl = `${this._repoUrl}`;
-    const cacheKey = `${baseUrl}\u0000${this._languageCode || ""}`;
-    if (remoteQuestionsCache.has(cacheKey)) {
-      return JSON.parse(JSON.stringify(remoteQuestionsCache.get(cacheKey)));
-    }
 
-    const fetchJSON = async (url) => {
-      const res = await fetch(url);
-      if (res.status === 404) return null;
-      if (!res.ok) {
-        throw new Error(`Failed to load questions (${res.status}): ${url}`);
+
+async getQuestions() {
+  const baseUrl = this._repoUrl.replace(/\/+$/, "");
+  const cacheKey = `${baseUrl}\0${this._languageCode || ""}`;
+
+  if (remoteQuestionsCache.has(cacheKey)) {
+      return structuredClone(remoteQuestionsCache.get(cacheKey));
+  }
+
+  const fetchJSON = async (url) => {
+      const response = await fetch(url);
+
+      if (response.status === 404) return null;
+
+      if (!response.ok) {
+          throw new Error(
+              `Failed to load questions (${response.status}): ${url}`
+          );
       }
-      return res.json();
-    };
 
-    const resolveLocalized = (localized, fallback) => {
-      return localized.map((q) => (typeof q === "number" ? fallback[q] : q));
-    };
+      return response.json();
+  };
 
-    const collectQuestions = async (folderUrl) => {
-      const defaultQs = await fetchJSON(`${folderUrl}/questions.json`);
+  /**
+   * Resolve localized questions.
+   *
+   * A numeric entry refers to the corresponding question
+   * in the default questions.json file.
+   */
+  const resolveLocalized = (localized, fallback) => {
+      return localized.map(q =>
+          typeof q === "number" ? fallback[q] : q
+      );
+  };
+
+  /**
+   * Load questions from a single folder.
+   */
+  const collectQuestions = async (folderUrl) => {
+      const defaultQs = await fetchJSON(
+          `${folderUrl}/questions.json`
+      );
+
       if (!defaultQs) return [];
 
       const localizedQs = this._languageCode
-        ? await fetchJSON(`${folderUrl}/questions_${this._languageCode}.json`)
-        : null;
+          ? await fetchJSON(
+              `${folderUrl}/questions_${this._languageCode}.json`
+          )
+          : null;
 
       const finalQs = localizedQs
-        ? resolveLocalized(localizedQs, defaultQs)
-        : defaultQs;
+          ? resolveLocalized(localizedQs, defaultQs)
+          : defaultQs;
 
       return this.processQuestions(finalQs, folderUrl);
-    };
+  };
 
-    const loadFolderRecursively = async (folderUrl) => {
-      const folderQuestions = [];
+  /**
+   * Find the subtree corresponding to repoUrl.
+   *
+   * Example:
+   * repoUrl = /data/social-science/history
+   *
+   * q-map.json contains:
+   * {
+   *   "social-science": {
+   *     "history": {
+   *       "world-war-ii": {}
+   *     }
+   *   }
+   * }
+   */
+   const normalizedUrl = baseUrl.replace(/\/+$/, "");
 
-      // 1. Collect local questions if present
-      const questions = await collectQuestions(folderUrl);
-      if (questions?.length) {
-        folderQuestions.push(...questions);
-      }
+   const match = normalizedUrl.match(/^(.*?)(?:^|\/)data(?:\/(.*))?$/);
+   
+   if (!match) {
+       throw new Error(
+           `Invalid repoUrl: ${baseUrl}. Expected a path containing data.`
+       );
+   }
+   
+   const prefix = match[1].replace(/\/$/, "");
+   
+   const dataRootUrl = prefix
+       ? `${prefix}/data`
+       : normalizedUrl.startsWith("/")
+           ? "/data"
+           : "data";
+   
+   const relativePath = match[2] || "";
 
-      // 2. Fetch and traverse sub-questions index
-      const subfolders = await fetchJSON(`${folderUrl}/sub-questions.json`);
-      if (
-        !subfolders ||
-        !Array.isArray(subfolders) ||
-        subfolders.length === 0
-      ) {
-        return folderQuestions;
-      }
+  // Fetch the map from the root data folder.
+  const questionMap = await fetchJSON(
+      `${dataRootUrl}/q-map.json`
+  );
 
-      // 3. Resolve subfolders using folderUrl
-      const subFolderPromises = subfolders.map(async (sub) => {
-        const cleanSubPath = sub.startsWith("/") ? sub.slice(1) : sub;
-        const subUrl = `${folderUrl}/${cleanSubPath}`; // Fixed: uses folderUrl
-
-        return await loadFolderRecursively(subUrl);
-      });
-
-      const nestedResults = await Promise.all(subFolderPromises);
-      nestedResults.forEach((qList) => folderQuestions.push(...qList));
-
-      return folderQuestions;
-    };
-
-    const questions = await loadFolderRecursively(baseUrl);
-    remoteQuestionsCache.set(cacheKey, questions);
-    return questions;
+  if (!questionMap) {
+      throw new Error(
+          `Question map not found: ${dataRootUrl}/q-map.json`
+      );
   }
+
+  // Navigate to the requested subtree.
+  const segments = relativePath
+      .split("/")
+      .filter(Boolean);
+
+  let subtree = questionMap;
+
+  for (const segment of segments) {
+      if (
+          !subtree ||
+          !Object.prototype.hasOwnProperty.call(subtree, segment)
+      ) {
+          // Requested folder is not present in the map.
+          return [];
+      }
+
+      subtree = subtree[segment];
+  }
+
+  /**
+   * Collect all question folder URLs from the subtree.
+   *
+   * Leaf folders are included because the map generator
+   * guarantees that they contain questions.json.
+   *
+   * Parent folders are also included because they may
+   * contain their own questions.json.
+   */
+  const folderUrls = [];
+
+  const collectFolders = (node, folderUrl) => {
+      folderUrls.push(folderUrl);
+
+      for (const [name, children] of Object.entries(node)) {
+          collectFolders(
+              children,
+              `${folderUrl}/${encodeURIComponent(name)}`
+          );
+      }
+  };
+
+  collectFolders(subtree, baseUrl);
+
+  /**
+   * Load questions from all folders in parallel.
+   *
+   * Missing questions.json files return an empty array.
+   */
+  const results = await Promise.all(
+      folderUrls.map(folderUrl =>
+          collectQuestions(folderUrl)
+      )
+  );
+
+  const questions = results.flat();
+
+  remoteQuestionsCache.set(cacheKey, questions);
+
+  return structuredClone(questions);
+}
+
 
   #filterQuestions(
     questions,
