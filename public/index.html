@@ -48,7 +48,6 @@
       </div>
     </nav>
 
-    <!-- Options Modal -->
     <div class="modal fade" tabindex="-1" id="optionsModal" aria-labelledby="optionsModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -59,56 +58,13 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body d-flex flex-column gap-3">
-
-            <!-- Practice settings — visible only in PRACTICE mode -->
-            <div id="practiceSettingsSection" class="d-none">
-              <h6 class="fw-semibold mb-3"><i class="bi bi-list-ol me-2"></i>Scope</h6>
-              <div style="max-width:160px">
-                <label class="form-label fw-semibold small" for="practiceMaxQInput">Questions to show <span class="text-muted fw-normal" id="practiceMaxQHint"></span></label>
-                <input type="number" class="form-control form-control-sm" id="practiceMaxQInput" min="1">
-              </div>
-              <div style="max-width:160px">
-                <label class="form-label fw-semibold small" for="complexityCmb">Complexity<span class="text-muted fw-normal" id="practiceMaxQHint"></span></label>
-                <select id="complexityCmb" class="form-select" aria-label="Default select example">
-                  <option value="H" selected>High</option>
-                  <option value="M">Medium</option>
-                  <option value="">Low</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- Quiz settings — visible only in QUIZ mode -->
-            <div id="quizSettingsSection" class="d-none">
-              <h6 class="fw-semibold mb-3"><i class="bi bi-stopwatch me-2"></i>Quiz Settings</h6>
-              <div class="row g-3">
-                <div class="col-6">
-                  <label class="form-label fw-semibold small" for="timerInput"><i class="bi bi-stopwatch me-1"></i>Duration (seconds)</label>
-                  <input type="number" class="form-control form-control-sm" id="timerInput" placeholder="no timer" min="1">
-                </div>
-                <div class="col-6">
-                  <label class="form-label fw-semibold small" for="maxQInput">Max Questions <span class="text-muted fw-normal" id="quizMaxQHint"></span></label>
-                  <input type="number" class="form-control form-control-sm" id="maxQInput" placeholder="all" min="1">
-                </div>
-              </div>
-            </div>
-
-            <!-- JSON editor — visible only in EDIT mode -->
-            <div id="jsonEditorSection" class="d-none">
-              <p class="text-muted small mb-0">Edit the JSON below and click <strong>Load</strong> to apply changes. This updates the current session only.</p>
-              <textarea class="form-control font-monospace" id="questionsJsonArea" rows="15" spellcheck="false" style="resize:vertical;min-height:200px"></textarea>
-              <div id="jsonErrorMsg" class="text-danger small d-none"></div>
-            </div>
-
+            <label class="form-label mb-0 text-nowrap small fw-semibold" for="complexityCmb" data-i18n="modeLabel">Complexity
+            </label>
+            <select id="complexityCmb" class="form-select form-select-sm" aria-label="Default select example"><option value="">Low</option><option value="M">Medium</option><option value="H">High</option></select></div><div class="form-check mb-3"><label class="form-label fw-semibold small" for="maxQInput">Max Questions <span class="text-muted fw-normal" id="quizMaxQHint"></span></label>
+            <input type="number" class="form-control form-control-sm" id="maxQInput" placeholder="all" min="1"></div><div class="form-check mb-3"><label class="form-label fw-semibold small" for="timerInput"><i class="bi bi-stopwatch me-1"></i>Quiz Duration (seconds)</label>
+            <input type="number" class="form-control form-control-sm" id="timerInput" placeholder="no timer" min="1">            
           </div>
           <div class="modal-footer">
-            <div id="jsonBtns" class="d-none d-flex gap-2 me-auto">
-              <button type="button" class="btn btn-outline-secondary btn-sm" id="resetJsonBtn">
-                <i class="bi bi-arrow-counterclockwise me-1"></i>Reset
-              </button>
-              <button type="button" class="btn btn-primary btn-sm" id="loadJsonBtn">
-                <i class="bi bi-upload me-1"></i>Load
-              </button>
-            </div>
             <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
             <button type="button" class="btn btn-primary btn-sm" id="optionsApplyBtn">
               <i class="bi bi-arrow-clockwise me-1"></i>Apply

@@ -40600,6 +40600,9 @@
     get locale() { return this._options.locale; }
     set locale(value) { void this.setOptions({ locale: value }); }
 
+    get repoUrl() { return this._options.repoUrl; }
+    set repoUrl(value) { void this.setOptions({ repoUrl: value }); }
+
     async setOptions(changes = {}) {
       this._options = this._normalizeOptions(changes);
       this._stopTimer();
