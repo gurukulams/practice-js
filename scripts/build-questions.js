@@ -400,6 +400,68 @@ function throwError(file, result) {
   process.exit(1);
 }
 
+/**
+ * Creates q-map.json representing the question folder hierarchy.
+ *
+ * Rules:
+ * - Include folders containing valid child folders.
+ * - Include leaf folders only if they contain questions.json.
+ * - Ignore leaf folders without questions.json.
+ *
+ * @param {string} dataFolder - Compiled questions directory.
+ *
+ * Example:
+ *   createQuestionMap("dist/data");
+ *
+ * Output:
+ *   dist/data/q-map.json
+ */
+ function createQuestionMap(dataFolder) {
+
+  function scanFolder(folder) {
+      const entries = fs.readdirSync(folder, {
+          withFileTypes: true
+      });
+
+      const result = {};
+
+      for (const entry of entries) {
+          if (!entry.isDirectory()) continue;
+
+          const childPath = path.join(folder, entry.name);
+          const children = scanFolder(childPath);
+
+          const hasQuestions = fs.existsSync(
+              path.join(childPath, "questions.json")
+          );
+
+          // Include folders with children or questions.json
+          if (Object.keys(children).length > 0 || hasQuestions) {
+              result[entry.name] = children;
+          }
+      }
+
+      return result;
+  }
+
+  if (!fs.existsSync(dataFolder)) {
+      console.warn(`Question map skipped. Folder not found: ${dataFolder}`);
+      return;
+  }
+
+  const questionMap = scanFolder(dataFolder);
+
+  const outputFile = path.join(dataFolder, "q-map.json");
+
+  fs.writeFileSync(
+      outputFile,
+      JSON.stringify(questionMap, null, 2),
+      "utf8"
+  );
+
+  console.log(`✅ Generated: ${outputFile}`);
+}
+
 function buildAll() {
   const dataDir = path.join(PUBLIC_DIR, "data");
   // Clean up any stale sub-questions.json or orphaned directories in PUBLIC_DIR/data
@@ -567,6 +629,9 @@ for (const dir in subQMap) {
     console.log(`✅ Generated: ${path.join(dir, "sub-questions.json")}`);
   }
 }
+
+createQuestionMap(dataDir);
+
 }
 
 // === CLI flag check ===

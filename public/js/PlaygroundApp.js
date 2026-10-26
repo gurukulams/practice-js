@@ -32,12 +32,61 @@ export default class PlaygroundApp {
 
         const qPathInput = document.getElementById("qPathInput");
 
-        qPathInput.addEventListener('blur', () => this.loadDataAndRender());
+        // Recursive function to extract all nested paths from the JSON tree
+        const extractPaths = (node, prefix = '') => {
+            let paths = [];
+            for (const [key, value] of Object.entries(node)) {
+                const currentPath = prefix ? `${prefix}/${key}` : key;
+                paths.push(currentPath);
+                if (value && typeof value === 'object' && Object.keys(value).length > 0) {
+                    paths = paths.concat(extractPaths(value, currentPath));
+                }
+            }
+            return paths;
+        }
+
+        // Fetch the JSON file and populate the datalist
+        fetch('/data/q-map.json')
+            .then(response => response.json())
+            .then(data => {
+                const paths = extractPaths(data);
+                const datalist = document.getElementById('qPathList');
+                
+                datalist.innerHTML = ''; // Clear any existing options
+                
+                paths.forEach(path => {
+                    const option = document.createElement('option');
+                    option.value = path;
+                    datalist.appendChild(option);
+                });
+            })
+            .catch(error => console.error('Error loading question map:', error));
+
+        // Function to handle updating the repo URL and triggering a reload
+        const handlePathUpdate = () => {
+            const pathValue = qPathInput.value.trim();
+            if (pathValue) {
+                this.practiceMaker.repoUrl = 'data/' + pathValue;
+            }
+        };
+        
+        // Triggered when an option is selected from the datalist dropdown
+        qPathInput.addEventListener('change', () => {
+            handlePathUpdate();
+        });
+        
+        // Triggered when focus leaves the input
+        qPathInput.addEventListener('blur', () => {
+            handlePathUpdate();
+        });
+        
+        // Triggered when the user presses Enter
         qPathInput.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') {
+            if (e.key === 'Enter') {
             e.preventDefault();
-            this.practiceMaker.repoUrl = 'data/' + qPathInput.value.trim();
-          }
+            handlePathUpdate();
+            qPathInput.blur(); // Optional: removes focus so blur doesn't fire a second time immediately
+            }
         });
 
         document.getElementById('optionsApplyBtn')
