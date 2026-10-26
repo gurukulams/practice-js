@@ -24,16 +24,17 @@
     "registry": "https://npm.pkg.github.com"
   },
   "scripts": {
+    "clean": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
     "prepublishOnly": "npm run build",
     "build:rollup": "rollup -c",
     "build:questions": "node scripts/build-questions.js --auto-fix",
     "sync": "copyfiles -u 1 \"public/**/*\" dist",
-    "build": "npm-run-all sync build:rollup build:questions",
+    "build": "npm-run-all clean sync build:rollup build:questions",
     "watch:questions": "node scripts/build-questions.js --watch --auto-fix",
     "watch:rollup": "rollup -c -w",
     "watch:public": "onchange \"public/**/*\" -- npm run sync",
     "watch:site": "browser-sync start --server \"dist\" --files \"dist/**/*\" --no-notify",
-    "watch": "npm-run-all sync build:rollup --parallel watch:*"
+    "watch": "npm-run-all clean sync build:rollup --parallel watch:*"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
