@@ -1,180 +1,262 @@
-# practice-js
+# PracticeMaker
 
-**A personal learning tool.** Add questions on any topic, practice them, and share with others.
+A lightweight, configurable JavaScript library for building interactive question-based learning experiences.
 
-No accounts, no platform — just a JSON file of questions and a browser. You write the questions, embed the widget anywhere, and anyone with the link can practice. Works for any subject: programming, math, languages, exam prep.
-
-**As a learner you can:**
-- Add your own questions and answers
-- Practice in free-form mode — check each answer, read the explanation
-- Take a timed quiz and review what you got wrong
-- Write personal notes per question (saved in your browser)
-- Switch UI to Tamil
-
----
-
-## Install as a dependency
-
-Published to **GitHub Packages** as `@gurukulams/practice-js` (never to the public npm registry). GitHub Packages requires a token even for public packages, so point the scope at the right registry first:
-
-```ini
-# .npmrc
-@gurukulams:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
-```
-
-```bash
-export NODE_AUTH_TOKEN=<PAT with read:packages>   # in Actions: secrets.GITHUB_TOKEN
-npm install @gurukulams/practice-js
-```
-
-## Develop & Build
-
-```bash
-npm install
-npm run build       # → dist/practice.bundle.js (UMD) + dist/practice.esm.js
-npm run watch       # dev server on http://localhost:3000
-npx playwright test # run tests
-```
-
-## Releasing
-
-No tags, no GitHub Releases. A push to `main` that changes `package.json`'s
-version builds, tests, and publishes that version to GitHub Packages
-automatically. If the version in `package.json` is already published, the
-workflow is a no-op.
-
-```bash
-npm version patch      # bumps package.json and commits (use --no-git-tag-version to skip the tag)
-git push
-```
-
-Playwright runs on every release but is currently **non-blocking** — the suite has pre-existing failures (hash navigation is only wired up in `EDIT` mode, and the default `complexity` filter hides the `TEXT_ANSWER`/`NUMBER_ANSWER` fixtures). Once those are fixed, drop `continue-on-error` from `.github/workflows/publish-package.yml` so a red suite blocks the release again.
-
-## Usage
-
-```html
-<script src="dist/practice.bundle.js"></script>
-<div id="root"></div>
-<script>
-  (async () => {
-    const pm = new PracticeMaker(document.getElementById('root'), {
-      repoUrl: '/data/eduction/fundamentals/material',
-      mode: 'PRACTICE', // 'PRACTICE' | 'QUIZ' | 'EDIT'
-      timer: 60,        // seconds (QUIZ only)
-      locale: 'en',     // 'en' | 'ta'
-      error: (msg) => alert(msg)
-    });
-    await pm.ready; // QuestionLoader fetches and prepares the question data
-    // For in-memory data: await pm.setQuestions(questionsArray);
-  })();
-</script>
-```
-
-`PracticeMaker` owns the UI and delegates question fetching, localization,
-filtering, shuffling, and locally authored question persistence to
-`QuestionLoader`. Pass its data options (`repoUrl`, `languageCode`, `maxQ`,
-`maxQuestions`, `complexity`, `tags`, `shuffle`/`shuffleQuestions`, `source`,
-and `includeUserQuestions`) alongside UI options such as `mode`, `timer`, and
-`locale`. `pm.ready` resolves after the initial dataset has loaded. For
-in-memory question data, pass `questions: questionsArray`; `setQuestions(arr)`
-remains available for loading/replacing questions after initialization and
-returns a promise that resolves when the updated questions are rendered.
-
-## API
-
-| Method | Description |
-|--------|-------------|
-| `setQuestions(arr)` | Delegate loading to QuestionLoader, then render from Q1 |
-| `setEditable(bool)` | Toggle edit mode (show/hide badge, enable textarea) |
-| `destroy()` | Clear timers, clean up before re-init |
-
-## Modes
-
-| Mode | Behaviour |
-|------|-----------|
-| `PRACTICE` | Verify each answer individually, toggle explanation |
-| `QUIZ` | Navigate freely, submit all at end, score + review grid |
-| `EDIT` | Author questions inline |
-
-## Question Types
-
-| Type | Input |
-|------|-------|
-| `CHOOSE_THE_BEST` | Single radio |
-| `MULTI_CHOICE` | Checkboxes |
-| `MATCH_THE_FOLLOWING` | Drag-reorder rows |
-| `TEXT_ANSWER` | Free text input |
-| `NUMBER_ANSWER` | Numeric input |
-
-## Questions JSON Schema
-
-```json
-[
-  {
-    "id": "unique-id",
-    "type": "CHOOSE_THE_BEST",
-    "question": "Which is correct?",
-    "explanation": "Optional explanation shown after verify.",
-    "choices": [
-      { "id": "c0", "choice": "Option A", "answer": false },
-      { "id": "c1", "choice": "Option B", "answer": true }
-    ]
-  },
-  {
-    "id": "text-q0",
-    "type": "TEXT_ANSWER",
-    "question": "What keyword defines a class in Java?",
-    "answer": "class"
-  },
-  {
-    "id": "num-q0",
-    "type": "NUMBER_ANSWER",
-    "question": "How many bits in a byte?",
-    "answer": 8
-  },
-  {
-    "id": "match-q0",
-    "type": "MATCH_THE_FOLLOWING",
-    "question": "Match the pattern to its intent.",
-    "choices": [
-      { "id": "c0", "choice": "Builder",    "match": "m0", "answer": true },
-      { "id": "c1", "choice": "Decorator",  "match": "m1", "answer": true },
-      { "id": "c2", "choice": "Visitor",    "match": null              }
-    ],
-    "matches": [
-      { "id": "m0", "match": "Construct complex objects step by step" },
-      { "id": "m1", "match": "Add behaviour without subclassing" }
-    ]
-  }
-]
-```
+PracticeMaker supports **Practice, Quiz, and Edit modes**, with question loading, filtering, navigation, answer verification, timers, and question authoring.
 
 ## Features
 
-- **Personal notes** — collapsible textarea per question, saved to `localStorage`
-- **i18n** — EN / Tamil UI labels via `locale` option; question content unchanged
-- **KaTeX** — math rendering on MATCH labels
-- **URL params** (playground) — `?mode=QUIZ`, `?timer=60`, `?editable=1`
-- **Hash navigation** — `/#question-id` jumps to that question
+- **Practice Mode** — Answer questions and verify responses instantly.
+- **Quiz Mode** — Take timed assessments and review results.
+- **Edit Mode** — Create and manage questions.
+- **Question Loading** — Load questions from repositories or JavaScript arrays.
+- **Filtering** — Filter questions by complexity and tags.
+- **Randomization** — Shuffle questions and answer choices.
+- **Localization** — Support multiple languages.
+- **Configurable UI** — Dynamically update settings without recreating the component.
 
+## Setup
 
-## Loading Extrnal Questions
+### Install dependencies
 
-**Linux / macOS**
 ```bash
-export QUESTIONS_FOLDER="<<DIR>>"
-export PUBLIC_FOLDER="<<DIR>>" 
-npm run watch:questions
+npm i
 ```
 
-**Windows (Powershell)**
+### Development
+
+Start the development server in watch mode:
+
 ```bash
-$env QUESTIONS_FOLDER=<<DIR>>
-$env PUBLIC_FOLDER=<<DIR>>
-npm run watch:questions
+npm run watch
 ```
+
+## Usage
+
+### Basic Example
+
+```javascript
+import PracticeMaker from './src/practice.js';
+
+const maker = new PracticeMaker(
+    document.getElementById('practice-container'),
+    {
+        mode: 'PRACTICE',
+        repoUrl: '/questions',
+        maxQ: 10,
+        shuffle: true
+    }
+);
+
+await maker.ready;
+```
+
+### HTML
+
+```html
+<div id="practice-container"></div>
+
+<script type="module">
+    import PracticeMaker from './src/practice.js';
+
+    const maker = new PracticeMaker(
+        document.getElementById('practice-container'),
+        {
+            mode: 'PRACTICE',
+            repoUrl: '/questions',
+            maxQ: 10
+        }
+    );
+</script>
+```
+
+## Configuration Options
+
+All configuration options are managed internally through `this._options`.
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `mode` | String | `PRACTICE` | Operating mode: `PRACTICE`, `QUIZ`, or `EDIT`. |
+| `repoUrl` | String | `undefined` | URL of the question repository. |
+| `questions` | Array | `undefined` | Questions supplied directly as an array. |
+| `maxQ` | Number | `null` | Maximum number of questions to load. |
+| `complexity` | String | `null` | Filter questions by complexity. |
+| `timer` | Number | `null` | Quiz duration in seconds. |
+| `locale` | String | `en` | Language used for interface labels. |
+| `languageCode` | String | `locale` | Language used when loading questions. |
+| `tags` | Array | `undefined` | Filter questions using tags. |
+| `shuffleQuestions` | Boolean | `true` | Randomize question order. |
+| `includeUserQuestions` | Boolean | Conditional | Include user-created questions. |
+| `source` | String | `all` / `user` | Question source. Defaults to `user` in EDIT mode. |
+| `error` | Function | `undefined` | Callback for reporting errors. |
+
+**Aliases:** `maxQuestions` is accepted as an alternative to `maxQ`, and `shuffle` as an alternative to `shuffleQuestions`.
+
+## Operating Modes
+
+### Practice Mode
+
+Allows learners to answer questions and verify answers immediately.
+
+```javascript
+await maker.setOptions({
+    mode: 'PRACTICE',
+    maxQ: 20,
+    shuffleQuestions: true
+});
+```
+
+### Quiz Mode
+
+Enables timed assessments, answer tracking, and result summaries.
+
+```javascript
+await maker.setOptions({
+    mode: 'QUIZ',
+    maxQ: 25,
+    timer: 900
+});
+```
+
+The timer is specified in seconds. In this example, the quiz duration is 15 minutes.
+
+### Edit Mode
+
+Allows users to create and edit questions.
+
+```javascript
+await maker.setOptions({
+    mode: 'EDIT',
+    includeUserQuestions: true,
+    source: 'user'
+});
+```
+
+## Dynamic Configuration
+
+PracticeMaker supports updating configuration at runtime through `setOptions()`.
+
+### Update multiple options
+
+```javascript
+await maker.setOptions({
+    mode: 'QUIZ',
+    maxQ: 15,
+    timer: 600,
+    complexity: 'MEDIUM'
+});
+```
+
+`setOptions()` updates the configuration, resets the relevant UI state, and reloads questions.
+
+### Update individual options
+
+```javascript
+maker.mode = 'PRACTICE';
+maker.maxQ = 10;
+maker.timer = 300;
+maker.complexity = 'EASY';
+maker.locale = 'ta';
+```
+
+Individual property setters delegate to `setOptions()`.
+
+**Recommendation:** Use `await maker.setOptions({...})` when updating multiple options to avoid repeated question loading.
+
+## Public API
+
+| Method / Property | Description |
+|---|---|
+| `maker.ready` | Promise representing initial question loading. |
+| `maker.options` | Returns a copy of the current configuration. |
+| `maker.setOptions(options)` | Updates configuration and reloads questions. |
+| `maker.setQuestions(questions)` | Supplies questions programmatically. |
+| `maker.loadQuestions()` | Reloads questions from the configured loader. |
+| `maker.setQuestion(index)` | Displays a question by index. |
+| `maker.doNext()` | Navigates to the next question. |
+| `maker.doPrevious()` | Navigates to the previous question. |
+| `maker.doCheck()` | Verifies the current answer. |
+| `maker.doSubmit()` | Submits the quiz and displays results. |
+| `maker.setEditable(boolean)` | Enables or disables question editing in the question pane. |
+| `maker.destroy()` | Stops the timer and removes registered cleanup handlers. |
+
+## Loading Questions Programmatically
+
+Questions can also be provided directly without a repository URL.
+
+```javascript
+const maker = new PracticeMaker(
+    document.getElementById('practice-container'),
+    {
+        mode: 'PRACTICE',
+        questions: [],
+        shuffleQuestions: false
+    }
+);
+
+await maker.ready;
+
+await maker.setQuestions(myQuestions);
+```
+
+## Filtering Questions
+
+Filter questions by complexity, tags, and maximum question count.
+
+```javascript
+await maker.setOptions({
+    complexity: 'HARD',
+    tags: ['algebra', 'geometry'],
+    maxQ: 10
+});
+```
+
+Question filtering and shuffling are delegated to `QuestionLoader`.
+
+## Localization
+
+Configure the UI and question language independently.
+
+```javascript
+await maker.setOptions({
+    locale: 'ta',
+    languageCode: 'ta'
+});
+```
+
+- `locale` controls translated UI labels.
+- `languageCode` determines the language requested from the question loader.
+
+## Error Handling
+
+Register an error callback to handle question-loading and validation errors.
+
+```javascript
+const maker = new PracticeMaker(
+    document.getElementById('practice-container'),
+    {
+        repoUrl: '/questions',
+        error: (message) => {
+            console.error(message);
+        }
+    }
+);
+```
+
+## Cleanup
+
+Call `destroy()` when removing the component.
+
+```javascript
+maker.destroy();
+```
+
+This stops the quiz timer and removes registered keyboard and navigation listeners.
 
 ## License
 
-MIT
+**BSD License**
+
+PracticeMaker is distributed under the BSD license.
+
+See the `LICENSE` file for the complete license terms.
