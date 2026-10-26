@@ -16881,8 +16881,6 @@
         });
       }
 
-      console.log(answers);
-
       return answers;
     }
 
@@ -40082,7 +40080,6 @@
 
     set repoUrl(value) {
       this._repoUrl = value;
-      console.log(`repoUrl set to: ${value}`);
     }
 
     get languageCode() {
@@ -40091,7 +40088,6 @@
 
     set languageCode(value) {
       this._languageCode = value === "en" ? "" : value;
-      console.log(`languageCode set to: ${this._languageCode}`);
     }
 
     get maxQuestions() {
@@ -40100,7 +40096,6 @@
 
     set maxQuestions(value) {
       this._maxQuestions = value;
-      console.log(`maxQuestions set to: ${value}`);
     }
 
     async loadSourceQuestions() {
@@ -40292,6 +40287,8 @@
     );
 
     const questions = results.flat();
+
+    console.log(questions);
 
     remoteQuestionsCache.set(cacheKey, questions);
 

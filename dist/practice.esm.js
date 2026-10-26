@@ -16875,8 +16875,6 @@ class ChoiceList {
       });
     }
 
-    console.log(answers);
-
     return answers;
   }
 
@@ -40076,7 +40074,6 @@ const remoteQuestionsCache = new Map();
 
   set repoUrl(value) {
     this._repoUrl = value;
-    console.log(`repoUrl set to: ${value}`);
   }
 
   get languageCode() {
@@ -40085,7 +40082,6 @@ const remoteQuestionsCache = new Map();
 
   set languageCode(value) {
     this._languageCode = value === "en" ? "" : value;
-    console.log(`languageCode set to: ${this._languageCode}`);
   }
 
   get maxQuestions() {
@@ -40094,7 +40090,6 @@ const remoteQuestionsCache = new Map();
 
   set maxQuestions(value) {
     this._maxQuestions = value;
-    console.log(`maxQuestions set to: ${value}`);
   }
 
   async loadSourceQuestions() {
@@ -40286,6 +40281,8 @@ async getQuestions() {
   );
 
   const questions = results.flat();
+
+  console.log(questions);
 
   remoteQuestionsCache.set(cacheKey, questions);
 

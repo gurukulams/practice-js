@@ -172,8 +172,6 @@ export default class ChoiceList {
       });
     }
 
-    console.log(answers);
-
     return answers;
   }
 
