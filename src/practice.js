@@ -1,7 +1,8 @@
+
 import QuestionPane from "./components/QuestionPane";
 import AuthorPane from "./components/AuthorPane";
 import { t } from "./i18n";
-import QuestionLoader from "./q-loader";
+import QuestionLoader from "./components/QuestionLoader";
 import {
   loadUserQuestions,
   saveUserQuestion,
@@ -12,35 +13,18 @@ export { loadUserQuestions, saveUserQuestion, deleteUserQuestion };
 
 export default class PracticeMaker {
   constructor(_contentRoot, _options) {
-    this.options = _options || {};
-    this.mode = this.options.mode || 'PRACTICE';
-    this.complexity = this.options.complexity ?? null;
-    this.maxQ = this.options.maxQuestions ?? this.options.maxQ ?? null;
-    this.timer = this.options.timer || null;
-    this.locale = this.options.locale || 'en';
-    this.shuffleQuestions =
-      this.options.shuffleQuestions ?? this.options.shuffle ?? true;
-    this.includeUserQuestions =
-      this.options.includeUserQuestions ?? Boolean(this.options.repoUrl || this.mode === 'EDIT');
-    this.questionLoader = new QuestionLoader({
-      repoUrl: this.options.repoUrl,
-      languageCode: this.options.languageCode ?? this.locale,
-      questions: this.options.questions,
-      includeUserQuestions: this.includeUserQuestions,
-      source: this.options.source || (this.mode === 'EDIT' ? 'user' : 'all'),
-      complexity: this.complexity,
-      maxQuestions: this.maxQ,
-      tags: this.options.tags,
-      shuffle: this.shuffleQuestions,
-    });
-    const L = (key) => t(this.locale, key);
+    this._options = this._normalizeOptions(_options);
+    this.questionLoader = new QuestionLoader(this._loaderOptions());
+
+    const L = (key) => t(this._options.locale, key);
+
     _contentRoot.innerHTML = `
     <div id="content" class="d-none" data-type="question">
     <header
        class="navbar navbar-expand-lg navbar-light border-bottom bg-body py-2 shadow-sm"
     >
        <div class="d-flex align-items-center w-100">
-          
+
           <!-- Left-side Tags Container: populated per-question in setQuestion() -->
           <div id="headerTagsContainer" class="d-flex align-items-center gap-1 flex-wrap me-auto"></div>
 
@@ -80,7 +64,7 @@ export default class PracticeMaker {
                 id="editControls"
                 style="padding-bottom: 6px"
              >
-             
+
              <button
                 type="button"
                 class="btn btn-sm btn-outline-primary border-0"
@@ -119,11 +103,6 @@ export default class PracticeMaker {
        </div>
     </header>
     <div id="navPane" class="d-flex align-items-center mt-2">
-       
-
-       
-       
-
     </div>
     <div id="questionPane" class="row h-50">
        <div class="col-12 col-md-6">
@@ -159,12 +138,11 @@ export default class PracticeMaker {
     </div>
  </div>
  <div id="authorContainer" class="d-none"></div>
- 
+
  <div
     id="fabPane"
     class="position-fixed bottom-0 end-0 d-flex align-items-center gap-2 me-3 mb-4 z-3"
  >
-
 
     <button
        type="button"
@@ -179,8 +157,8 @@ export default class PracticeMaker {
     </button>
 
  </div>
- 
             `;
+
     this.questionPane = new QuestionPane((arr) => this.shuffle(arr));
     this.questionPane.readOnly = true;
 
@@ -191,11 +169,11 @@ export default class PracticeMaker {
       const tag = document.activeElement.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
       if (e.key === 'ArrowRight' && !this.nextBtn.disabled) this.doNext();
-      if (e.key === 'ArrowLeft'  && !this.prevBtn.disabled) this.doPrevious();
+      if (e.key === 'ArrowLeft' && !this.prevBtn.disabled) this.doPrevious();
     };
     document.addEventListener('keydown', this._keyHandler);
-    // Get selected tags from URL parameters (?tags=tag1,tag2)
-    // Remove the leading '#' and parse as URLSearchParams
+
+    // Get selected tags from URL parameters
     const hashString = window.location.hash.replace(/^#/, "");
     this.urlParams = new URLSearchParams(hashString);
 
@@ -206,13 +184,12 @@ export default class PracticeMaker {
       const hashString = window.location.hash.replace(/^#/, "");
       const params = new URLSearchParams(hashString);
       const selectedTagsParam = params.get("tags");
-      
+
       this.selectedTags = selectedTagsParam ? selectedTagsParam.split(",") : [];
       this.loadQuestions();
     });
 
-    // Keep tag selection in sync with browser Back/Forward, since tag
-    // clicks now update the URL via pushState instead of reloading.
+    // Keep tag selection in sync with browser Back/Forward
     this._popstateHandler = () => {
       this.urlParams = new URLSearchParams(window.location.search);
       const tagsParam = this.urlParams.get("tags");
@@ -221,12 +198,125 @@ export default class PracticeMaker {
     };
     window.addEventListener('popstate', this._popstateHandler);
 
+    this._resetUI();
     this.ready =
-      this.options.repoUrl ||
-      Array.isArray(this.options.questions) ||
-      this.includeUserQuestions
+      this._options.repoUrl ||
+      Array.isArray(this._options.questions) ||
+      this._options.includeUserQuestions
       ? this.loadQuestions()
       : Promise.resolve(this);
+  }
+
+  _normalizeOptions(options = {}) {
+    const merged = { ...this._options, ...options };
+    const mode = merged.mode ?? 'PRACTICE';
+    const repoUrl = merged.repoUrl;
+    const modeChanged = Object.hasOwn(options, 'mode');
+
+    return {
+      ...merged,
+      mode,
+      locale: merged.locale ?? 'en',
+      complexity: merged.complexity ?? null,
+      maxQ: options.maxQ ?? options.maxQuestions ??
+            merged.maxQ ?? merged.maxQuestions ?? null,
+      timer: merged.timer ?? null,
+      shuffleQuestions: merged.shuffleQuestions ?? merged.shuffle ?? true,
+      includeUserQuestions: options.includeUserQuestions ??
+        (modeChanged
+          ? Boolean(repoUrl || mode === 'EDIT')
+          : merged.includeUserQuestions ?? Boolean(repoUrl || mode === 'EDIT')),
+      source: options.source ??
+        (modeChanged
+          ? (mode === 'EDIT' ? 'user' : 'all')
+          : merged.source ?? (mode === 'EDIT' ? 'user' : 'all')),
+    };
+  }
+
+  _loaderOptions() {
+    const o = this._options;
+    return {
+      repoUrl: o.repoUrl,
+      languageCode: o.languageCode ?? o.locale,
+      questions: o.questions,
+      includeUserQuestions: o.includeUserQuestions,
+      source: o.source,
+      complexity: o.complexity,
+      maxQuestions: o.maxQ,
+      tags: o.tags,
+      shuffle: o.shuffleQuestions,
+    };
+  }
+
+  get options() { return { ...this._options }; }
+
+  get mode() { return this._options.mode; }
+  set mode(value) { void this.setOptions({ mode: value }); }
+
+  get maxQ() { return this._options.maxQ; }
+  set maxQ(value) { void this.setOptions({ maxQ: value }); }
+
+  get timer() { return this._options.timer; }
+  set timer(value) { void this.setOptions({ timer: value }); }
+
+  get complexity() { return this._options.complexity; }
+  set complexity(value) { void this.setOptions({ complexity: value }); }
+
+  get locale() { return this._options.locale; }
+  set locale(value) { void this.setOptions({ locale: value }); }
+
+  async setOptions(changes = {}) {
+    this._options = this._normalizeOptions(changes);
+    this._stopTimer();
+    this.questionLoader = new QuestionLoader(this._loaderOptions());
+    this._resetUI();
+    return this.loadQuestions();
+  }
+
+  _resetUI() {
+    const mode = this._options.mode;
+    const toggle = (id, visible) =>
+      document.getElementById(id)?.classList.toggle('d-none', !visible);
+
+    toggle('checkBtn', mode === 'PRACTICE');
+    toggle('editControls', mode === 'EDIT');
+    toggle('quizTimer', false);
+    toggle('quizSubmitBtn', false);
+    toggle('nextBtn', true);
+    toggle('explainToggleBtn', false);
+
+    document.getElementById('quizResults')?.remove();
+    document.getElementById('backToResultsBtn')?.remove();
+    document.getElementById('editControls')?.classList.toggle(
+      'd-flex', mode === 'EDIT'
+    );
+
+    this.questionPane.readOnly = true;
+  }
+
+  _stopTimer() {
+    clearInterval(this.timerInterval);
+    this.timerInterval = null;
+  }
+
+  _startTimer() {
+    this._stopTimer();
+
+    if (this._options.mode !== 'QUIZ' || !this._options.timer) return;
+
+    this.timeRemaining = this._options.timer;
+    document.getElementById('quizTimer').classList.remove('d-none');
+    this.updateTimerDisplay();
+
+    this.timerInterval = setInterval(() => {
+      this.timeRemaining--;
+      this.updateTimerDisplay();
+
+      if (this.timeRemaining <= 0) {
+        this._stopTimer();
+        this.doSubmit();
+      }
+    }, 1000);
   }
 
   async loadQuestions() {
@@ -234,41 +324,48 @@ export default class PracticeMaker {
       const questions = await this.questionLoader.loadQuestions({
         tags: this.selectedTags,
       });
+
       this.originalQuestions = this.questionLoader.originalQuestions;
       this._renderQuestions(questions);
       return this;
+
     } catch (error) {
-      this.options.error?.(`Failed to load questions: ${error.message}`);
+      this._options.error?.(`Failed to load questions: ${error.message}`);
       throw error;
     }
   }
 
   shuffle(array) {
-    if (!array || !Array.isArray(array)) return array;
-    if (this.options && this.options.shuffle === false) {
+    if (!Array.isArray(array) || !this._options.shuffleQuestions) {
       return array;
     }
+
     for (let i = array.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [array[i], array[j]] = [array[j], array[i]];
     }
+
     return array;
   }
 
-  // Updates selected tags + URL (without navigating) and re-filters the
-  // already-loaded question set in place, instead of reloading the page.
-  _applyTagSelection(tagsArray) {
-    this.selectedTags = tagsArray;
-  
+  _applyTagSelection(tags) {
+    this.selectedTags = tags;
+
     const params = new URLSearchParams();
-    if (tagsArray.length > 0) {
-      params.set("tags", tagsArray.join(","));
-      window.location.hash = params.toString(); // Updates URL to #tags=tag1,tag2
+    if (tags.length) params.set('tags', tags.join(','));
+
+    const hash = params.toString();
+
+    if (hash) {
+      history.pushState(null, '', `#${hash}`);
     } else {
-      // Clear hash cleanly without triggering jump-to-top behavior
-      history.replaceState(null, "", window.location.pathname + window.location.search);
+      history.replaceState(
+        null, '',
+        window.location.pathname + window.location.search
+      );
     }
-    this.loadQuestions();
+
+    return this.loadQuestions();
   }
 
   setQuestions(questions) {
@@ -277,170 +374,130 @@ export default class PracticeMaker {
   }
 
   _renderQuestions(questions) {
+    this._stopTimer();
+
     this.questions = questions;
     this.currentQuestionIndex = 0;
     this.userAnswers = {};
+    this.results = [];
 
-    if (this.questions.length === 0) {
-      if (this.mode === 'EDIT') {
-        document.getElementById('editEmptyState').classList.remove('d-none');
-        document.getElementById('content').classList.add('d-none');
-        document.getElementById('notfound').classList.add('d-none');
-      } else {
-        document.getElementById("notfound").classList.remove("d-none");
-        document.getElementById("content").classList.add("d-none");
-        const primaryAnchor = document.getElementById("notfound").querySelector("a.btn-primary");
-        primaryAnchor.href = document.referrer;
-        primaryAnchor.innerHTML = "Go Back";
+    const mode = this._options.mode;
+    const hasQuestions = questions.length > 0;
+
+    const toggle = (id, visible) =>
+      document.getElementById(id)?.classList.toggle('d-none', !visible);
+
+    toggle('content', hasQuestions);
+    toggle('notfound', !hasQuestions && mode !== 'EDIT');
+    toggle('editEmptyState', !hasQuestions && mode === 'EDIT');
+
+    if (!hasQuestions) {
+      if (mode !== 'EDIT') {
+        const link = document.querySelector('#notfound a.btn-primary');
+        if (link) {
+          link.href = document.referrer || '/';
+          link.textContent = 'Go Back';
+        }
       }
-    } else {
-      document.getElementById('editEmptyState').classList.add('d-none');
-      document.getElementById("notfound").classList.add("d-none");
-
-      let startIndex = 0;
-      if (this.mode === 'EDIT') {
-        const hash = window.location.hash;
-        const idFromHash = hash.replace('#', '');
-        const index = idFromHash ? this.questions.findIndex(q => q.id === idFromHash) : -1;
-        startIndex = index !== -1 ? index : 0;
-      }
-
-      this.setQuestion(startIndex);
-      document.getElementById("content").classList.remove("d-none");
-
-      if (this.mode === 'EDIT') {
-        document.getElementById('editControls').classList.remove('d-none');
-        document.getElementById('editControls').classList.add('d-flex');
-        this._updateEditBtn();
-      }
-
-      if (this.mode === 'QUIZ' && this.timer) {
-        this.timeRemaining = this.timer;
-        document.getElementById('quizTimer').classList.remove('d-none');
-        this.updateTimerDisplay();
-        this.timerInterval = setInterval(() => {
-          this.timeRemaining--;
-          this.updateTimerDisplay();
-          if (this.timeRemaining <= 0) {
-            clearInterval(this.timerInterval);
-            this.doSubmit();
-          }
-        }, 1000);
-      }
+      return;
     }
+
+    let startIndex = 0;
+
+    if (mode === 'EDIT') {
+      const id = window.location.hash.replace(/^#/, '');
+      const index = questions.findIndex(q => q.id === id);
+      if (index >= 0) startIndex = index;
+    }
+
+    this.setQuestion(startIndex);
+    this._startTimer();
   }
 
-  setQuestion(questionIndex) {
+  setQuestion(index) {
+    if (index < 0 || index >= this.questions.length) return;
 
-    // save current answer before switching
-    if (this.questionPane.getQuestion && this.questionPane.getQuestion()) {
-      const currentQ = this.questionPane.getQuestion();
-      this.userAnswers[currentQ.id] = this.questionPane.getAnswer();
+    this._saveCurrentAnswer();
+
+    const mode = this._options.mode;
+    const isFirst = index === 0;
+    const isLast = index === this.questions.length - 1;
+
+    this.currentQuestionIndex = index;
+
+    this.prevBtn.disabled = isFirst;
+    this.nextBtn.disabled = isLast;
+
+    this.nextBtn.classList.toggle('d-none', mode === 'QUIZ' && isLast);
+
+    document.getElementById('quizSubmitBtn')
+      .classList.toggle('d-none', mode !== 'QUIZ' || !isLast);
+
+    document.getElementById('questionCounter').textContent =
+      `Q ${index + 1} / ${this.questions.length}`;
+
+    this.explainToggleBtn.classList.add('d-none');
+    this.doExplain(false);
+
+    const question = this.questions[index];
+
+    this._renderTags(question.tags || []);
+    this.questionPane.setQuestion(question);
+
+    if (mode === 'QUIZ') {
+      const saved = this.userAnswers[question.id];
+      if (saved !== undefined) this._restoreAnswer(question, saved);
     }
 
-    // hide explain btn in PRACTICE mode when navigating
-    if (this.checkBtn && !this.checkBtn.classList.contains("d-none")) {
-      if (this.explainToggleBtn) this.explainToggleBtn.classList.add("d-none");
-      this.doExplain(false);
-    }
+    if (mode === 'EDIT') this._updateEditBtn();
+  }
 
-    const isLast  = questionIndex === this.questions.length - 1;
-    const isFirst = questionIndex === 0;
+  _saveCurrentAnswer() {
+    const question = this.questionPane.getQuestion?.();
+    if (!question) return;
 
-    if (this.nextBtn) this.nextBtn.disabled = isLast;
-    if (this.prevBtn) this.prevBtn.disabled = isFirst;
+    this.userAnswers ??= {};
+    this.userAnswers[question.id] = this.questionPane.getAnswer();
+  }
 
-    // QUIZ: hide Next on last, show Submit; hide Submit on non-last, show Next
-    if (this.mode === 'QUIZ') {
-      this.nextBtn.classList.toggle('d-none', isLast);
-      document.getElementById('quizSubmitBtn').classList.toggle('d-none', !isLast);
-    }
+  _renderTags(tags) {
+    const container = document.getElementById('headerTagsContainer');
+    container.replaceChildren();
 
-    this.currentQuestionIndex = questionIndex;
+    if (!tags.length) return;
 
-    const counterEl = document.getElementById('questionCounter');
-    if (counterEl && (this.mode === 'QUIZ' || this.mode === 'PRACTICE')) {
-      counterEl.textContent = `Q ${questionIndex + 1} / ${this.questions.length}`;
-      counterEl.classList.remove('d-none');
-    }
+    const icon = document.createElement('i');
+    icon.className = 'bi bi-tags me-2';
+    container.appendChild(icon);
 
-    const q = this.questions[this.currentQuestionIndex];
+    tags.forEach(tag => {
+      const selected = this.selectedTags.includes(tag);
+      const badge = document.createElement('span');
 
-    const container = document.getElementById("headerTagsContainer");
+      badge.className = selected
+        ? 'badge bg-primary text-white me-1'
+        : 'badge border text-body me-1';
 
-container.innerHTML = "";
+      badge.style.cursor = 'pointer';
+      badge.textContent = tag;
 
-if (q.tags?.length) {
-    container.insertAdjacentHTML(
-        "beforeend",
-        '<i class="bi bi-tags me-2"></i>'
-    );
-
-
-
-    q.tags.forEach(tag => {
-      const badge = document.createElement("span");
-      const isSelected = this.selectedTags.includes(tag);
-  
-      if (isSelected) {
-          // Highlight selected tag with primary background and white text
-          badge.className = "badge bg-primary text-white me-1 d-inline-flex align-items-center";
-          badge.textContent = tag + " ";
-  
-          // Create close button (x)
-          const closeBtn = document.createElement("span");
-          closeBtn.innerHTML = " &times;";
-          closeBtn.style.cursor = "pointer";
-          closeBtn.className = "ms-1";
-  
-          // Click event to remove tag and re-filter in place
-          closeBtn.addEventListener("click", (e) => {
-              e.stopPropagation(); // Prevent parent click events
-  
-              // Filter out the clicked tag
-              const updatedTags = this.selectedTags.filter(t => t !== tag);
-  
-              // Update URL parameters
-              if (updatedTags.length > 0) {
-                this.urlParams.set("tags", updatedTags.join(","));
-              } else {
-                this.urlParams.delete("tags");
-              }
-
-              // Update the URL without reloading, then re-filter in place
-              this._applyTagSelection(updatedTags);
-          });
-  
-          badge.appendChild(closeBtn);
-      } else {
-          /// Unselected Tag Styling
-        badge.className = "badge border text-body me-1";
-        badge.style.cursor = "pointer";
-        badge.textContent = tag;
-
-        // Click on unselected tag -> add tag and re-filter in place
-        badge.addEventListener("click", () => {
-            const updatedTags = [...this.selectedTags, tag];
-            this.urlParams.set("tags", updatedTags.join(","));
-            this._applyTagSelection(updatedTags);
-        });
+      if (selected) {
+        const close = document.createElement('span');
+        close.className = 'ms-1';
+        close.textContent = ' ×';
+        badge.appendChild(close);
       }
-  
+
+      badge.addEventListener('click', () => {
+        const updated = selected
+          ? this.selectedTags.filter(t => t !== tag)
+          : [...this.selectedTags, tag];
+
+        this._applyTagSelection(updated);
+      });
+
       container.appendChild(badge);
-  });
-}
-
-    this.questionPane.setQuestion(q);
-
-    // Restore saved answer when navigating back in QUIZ
-    if (this.mode === 'QUIZ') {
-      
-      const saved = this.userAnswers[q.id];
-      if (saved) this._restoreAnswer(q, saved);
-    }
-
-    if (this.mode === 'EDIT') this._updateEditBtn();
-
+    });
   }
 
   doNext() {
@@ -454,445 +511,565 @@ if (q.tags?.length) {
   }
 
   setQuestionParameter() {
-    // window.location.hash = this.questions[this.currentQuestionIndex].id;
+    // Reserved for URL-based question navigation.
   }
 
   doExplain(explain) {
-    if (explain) {
-      this.explainToggleBtn.classList.remove("btn-outline-primary");
-      this.explainToggleBtn.classList.add("btn-primary");
-    } else {
-      this.explainToggleBtn.classList.remove("btn-primary");
-      this.explainToggleBtn.classList.add("btn-outline-primary");
-    }
+    this.explainToggleBtn.classList.toggle('btn-primary', explain);
+    this.explainToggleBtn.classList.toggle('btn-outline-primary', !explain);
     this.questionPane.doExplain(explain);
   }
 
   doSubmit() {
-    // save current question's answer before scoring
-    if (this.questionPane.getQuestion && this.questionPane.getQuestion()) {
-      const currentQ = this.questionPane.getQuestion();
-      this.userAnswers[currentQ.id] = this.questionPane.getAnswer();
-    }
+    this._saveCurrentAnswer();
+    this._stopTimer();
 
-    this.results = [];
+    this.results = this.questions.map(question => {
+      const answer = this.userAnswers[question.id] || '';
 
-    for (let i = 0; i < this.questions.length; i++) {
-      const question = this.questions[i];
-      const answerText = this.userAnswers[question.id] || '';
-      const answered = answerText !== '';
-      const correct = this._checkAnswer(question, answerText);
-      this.results.push({ correct, answered });
-    }
+      return {
+        correct: this._checkAnswer(question, answer),
+        answered: answer !== '',
+      };
+    });
 
-    if (this.mode === 'QUIZ') {
-      clearInterval(this.timerInterval);
+    if (this._options.mode === 'QUIZ') {
       this.showResultGrid();
     }
   }
 
   _checkAnswer(question, answerText) {
-    if (answerText === '') return false;
-    let isCorrect = false;
+    if (answerText === '' || answerText == null) return false;
+
     switch (question.type) {
-      case "CHOOSE_THE_BEST": {
-        const correctChoice = question.choices.find(
-          (choice) => choice.answer === true
+      case 'CHOOSE_THE_BEST':
+        return question.choices.some(
+          choice => choice.answer === true && choice.id === answerText
         );
-        isCorrect = correctChoice && correctChoice.id === answerText;
-        break;
-      }
-      case "MULTI_CHOICE": {
-        const correctChoiceIds = question.choices
-          .filter((choice) => choice.answer === true)
-          .map((choice) => choice.id)
+
+      case 'MULTI_CHOICE': {
+        const correct = question.choices
+          .filter(choice => choice.answer === true)
+          .map(choice => choice.id)
           .sort();
-        const selectedChoiceIds = answerText
-          .split(",")
-          .map((id) => id.trim())
+
+        const selected = answerText
+          .split(',')
+          .map(id => id.trim())
           .sort();
-        isCorrect = selectedChoiceIds.length === correctChoiceIds.length &&
-          selectedChoiceIds.every(id => correctChoiceIds.includes(id));
-        break;
+
+        return selected.length === correct.length &&
+          selected.every((id, i) => id === correct[i]);
       }
-      case "MATCH_THE_FOLLOWING": {
-        if (this.originalQuestions) {
-          const originalQuestion = this.originalQuestions.find(
-            (q) => q.id === question.id
-          );
-          if (originalQuestion) {
-            const ids = answerText.split(",");
-            const n = originalQuestion.choices.length;
-            const userChoiceIds = ids.slice(0, n);
-            const userMatchIds = ids.slice(n, n * 2);
-            const correctPairs = {};
-            originalQuestion.choices.forEach((choice, i) => {
-              correctPairs[choice.id] = originalQuestion.matches[i].id;
-            });
-            isCorrect = userChoiceIds.length === n &&
-              userMatchIds.length === n &&
-              userChoiceIds.every((cId, i) => correctPairs[cId] === userMatchIds[i]);
-          }
+
+      case 'MATCH_THE_FOLLOWING': {
+        const original = this.originalQuestions?.find(
+          q => q.id === question.id
+        );
+
+        if (!original) return false;
+
+        const count = original.choices.length;
+        const ids = answerText.split(',');
+        const choices = ids.slice(0, count);
+        const matches = ids.slice(count, count * 2);
+
+        if (choices.length !== count || matches.length !== count) {
+          return false;
         }
-        break;
+
+        const pairs = Object.fromEntries(
+          original.choices.map((choice, i) => [
+            choice.id,
+            original.matches[i].id,
+          ])
+        );
+
+        return choices.every(
+          (choiceId, i) => pairs[choiceId] === matches[i]
+        );
       }
-      case "TEXT_ANSWER": {
-        isCorrect = answerText.toLowerCase() === question.answer.toLowerCase();
-        break;
+
+      case 'TEXT_ANSWER':
+        return answerText.toLowerCase() ===
+          question.answer.toLowerCase();
+
+      case 'NUMBER_ANSWER': {
+        const value = parseFloat(answerText);
+        return !Number.isNaN(value) &&
+          Math.abs(value - question.answer) < 0.0001;
       }
-      case "NUMBER_ANSWER": {
-        const parsed = parseFloat(answerText);
-        isCorrect = !isNaN(parsed) && Math.abs(parsed - question.answer) < 0.0001;
-        break;
-      }
+
+      default:
+        return false;
     }
-    return isCorrect;
   }
 
-  doCheck(silentMode) {
+  doCheck(silentMode = false) {
     const question = this.questionPane.getQuestion();
-    const answerText = this.questionPane.getAnswer();
+    const answer = this.questionPane.getAnswer();
 
-    if (answerText === "" && !silentMode) {
-      this.options.error(t(this.locale, 'pleaseAnswer'));
+    if (!answer && !silentMode) {
+      this._options.error?.(
+        t(this._options.locale, 'pleaseAnswer')
+      );
       return false;
     }
 
-    // MULTI_CHOICE needs live DOM highlighting — handle that here before delegating
-    if (question.type === "MULTI_CHOICE") {
-      const correctChoiceIds = question.choices
-        .filter((choice) => choice.answer === true)
-        .map((choice) => choice.id)
-        .sort();
-
-      const choiceListElement = this.questionPane.mcqList.element;
-      const listItems = choiceListElement.querySelectorAll("li");
-      listItems.forEach((liEl) => {
-        const input = liEl.querySelector("input");
-        const choiceId = input.value;
-        if (input.checked) {
-          if (correctChoiceIds.includes(choiceId)) {
-            liEl.classList.add("bg-success", "text-white");
-            liEl.classList.remove("bg-danger", "text-black");
-          } else {
-            liEl.classList.add("bg-danger", "text-white");
-            liEl.classList.remove("bg-success", "text-black");
-          }
-        } else {
-          liEl.classList.remove("bg-success", "bg-danger", "text-white");
-          liEl.classList.add("text-black");
-        }
-      });
-
-      const originalVerify = this.questionPane.verify;
-      this.questionPane.verify = () => {};
-      setTimeout(() => {
-        this.questionPane.verify = originalVerify;
-      }, 100);
+    if (question.type === 'MULTI_CHOICE') {
+      this._highlightMultiChoice(question);
     }
 
-    const isCorrect = this._checkAnswer(question, answerText);
+    const correct = this._checkAnswer(question, answer);
 
-    if (isCorrect) {
-      this.questionPane.verify(true);
-      if (this.explainToggleBtn) {
-        this.explainToggleBtn.firstElementChild.innerHTML = t(this.locale, 'correctAnswer');
-        this.explainToggleBtn.classList.remove("btn-danger");
-        this.explainToggleBtn.classList.add("btn-success");
-        this.explainToggleBtn.classList.remove("d-none");
+    this.questionPane.verify(correct);
+    this._showCheckResult(correct);
+
+    return correct;
+  }
+
+  _highlightMultiChoice(question) {
+    const correctIds = new Set(
+      question.choices
+        .filter(choice => choice.answer === true)
+        .map(choice => choice.id)
+    );
+
+    const items = this.questionPane.mcqList.element
+      .querySelectorAll('li');
+
+    items.forEach(item => {
+      const input = item.querySelector('input');
+      if (!input) return;
+
+      item.classList.remove(
+        'bg-success', 'bg-danger', 'text-white', 'text-black'
+      );
+
+      if (!input.checked) {
+        item.classList.add('text-black');
+        return;
       }
-    } else {
-      this.questionPane.verify(false);
-      if (this.explainToggleBtn) {
-        this.explainToggleBtn.firstElementChild.innerHTML = t(this.locale, 'wrongAnswer');
-        this.explainToggleBtn.classList.remove("btn-success");
-        this.explainToggleBtn.classList.add("btn-danger");
-        this.explainToggleBtn.classList.remove("d-none");
-      }
-    }
-    return isCorrect;
+
+      item.classList.add(
+        correctIds.has(input.value) ? 'bg-success' : 'bg-danger',
+        'text-white'
+      );
+    });
+  }
+
+  _showCheckResult(correct) {
+    const button = this.explainToggleBtn;
+    if (!button) return;
+
+    button.firstElementChild.textContent = t(
+      this._options.locale,
+      correct ? 'correctAnswer' : 'wrongAnswer'
+    );
+
+    button.classList.remove('btn-success', 'btn-danger', 'd-none');
+    button.classList.add(correct ? 'btn-success' : 'btn-danger');
   }
 
   addActions() {
-    const navPane = document.getElementById("navPane");
+    this.explainToggleBtn = document.getElementById('explainToggleBtn');
+    this.checkBtn = document.getElementById('checkBtn');
+    this.prevBtn = document.getElementById('prevBtn');
+    this.nextBtn = document.getElementById('nextBtn');
 
-    this.explainToggleBtn = document.getElementById("explainToggleBtn");
-    this.explainToggleBtn.addEventListener("click", () =>
-      this.doExplain(!this.explainToggleBtn.classList.contains("btn-primary"))
+    this.explainToggleBtn.addEventListener('click', () =>
+      this.doExplain(
+        !this.explainToggleBtn.classList.contains('btn-primary')
+      )
     );
 
-    // Bottom bar buttons
-    this.checkBtn   = document.getElementById('checkBtn');
-    this.prevBtn    = document.getElementById('prevBtn');
-    this.nextBtn    = document.getElementById('nextBtn');
+    this.checkBtn.addEventListener('click', () => this.doCheck());
+    this.prevBtn.addEventListener('click', () => this.doPrevious());
+    this.nextBtn.addEventListener('click', () => this.doNext());
 
-    this.checkBtn.addEventListener("click", () => this.doCheck());
-    this.prevBtn.addEventListener("click",  () => this.doPrevious());
-    this.nextBtn.addEventListener("click",  () => this.doNext());
+    document.getElementById('quizSubmitBtn')
+      .addEventListener('click', () => this.doSubmit());
 
-    if (this.mode === 'QUIZ') {
-      this.checkBtn.classList.add('d-none');
-      document.getElementById('quizSubmitBtn').addEventListener('click', () => this.doSubmit());
-    }
+    document.getElementById('editAddNavBtn')
+      .addEventListener('click', () => this.showAuthorPane(null));
 
-    if (this.mode === 'EDIT') {
-      this.checkBtn.classList.add('d-none');
-      document.getElementById('editAddNavBtn').addEventListener('click', () => this.showAuthorPane(null));
-      document.getElementById('editEmptyAddBtn').addEventListener('click', () => this.showAuthorPane(null));
-      document.getElementById('questionPane').addEventListener('dblclick', () => {
-        const q = this.questions[this.currentQuestionIndex];
-        if (q && q._source === 'user') this.showAuthorPane(q);
+    document.getElementById('editEmptyAddBtn')
+      .addEventListener('click', () => this.showAuthorPane(null));
+
+    document.getElementById('questionPane')
+      .addEventListener('dblclick', () => {
+        if (this._options.mode !== 'EDIT') return;
+
+        const question = this.questions?.[this.currentQuestionIndex];
+
+        if (question?._source === 'user') {
+          this.showAuthorPane(question);
+        }
       });
-    }
   }
 
   _updateEditBtn() {
-    const counter = document.getElementById('questionCounter');
-    if (counter) counter.textContent = `Q ${this.currentQuestionIndex + 1} / ${this.questions.length}`;
-    if (this.prevBtn) this.prevBtn.disabled = this.currentQuestionIndex === 0;
-    if (this.nextBtn) this.nextBtn.disabled = this.currentQuestionIndex === this.questions.length - 1;
+    const index = this.currentQuestionIndex;
+    const total = this.questions.length;
+
+    document.getElementById('questionCounter').textContent =
+      `Q ${index + 1} / ${total}`;
+
+    this.prevBtn.disabled = index === 0;
+    this.nextBtn.disabled = index === total - 1;
   }
 
-  showAuthorPane(question) {
-    document.getElementById('content').classList.add('d-none');
-    document.getElementById('editEmptyState').classList.add('d-none');
+  showAuthorPane(question = null) {
     const container = document.getElementById('authorContainer');
-    container.classList.remove('d-none');
-
-    // Show fab with Save / Cancel
     const fabPane = document.getElementById('fabPane');
 
-    const showFormFab = () => {
-      fabPane.classList.remove('d-none');
-      fabPane.innerHTML = `
-        <button type="button" class="btn btn-link btn-sm text-muted" id="authorChangeTypeFabBtn">← Change type</button>
-        <button type="button" class="btn btn-outline-secondary" id="authorCancelFabBtn">Cancel</button>
-        <button type="button" class="btn btn-primary" id="authorSaveFabBtn"><i class="bi bi-check me-1"></i>Save</button>`;
-      document.getElementById('authorChangeTypeFabBtn').addEventListener('click', () => {
-        this._authorPane._destroyEditors();
-        this._authorPane.selectedType = null;
-        this._authorPane._renderTypePicker();
-        showPickerFab();
-      });
-      document.getElementById('authorSaveFabBtn').addEventListener('click', () => this._authorPane._save());
-      document.getElementById('authorCancelFabBtn').addEventListener('click', () => this._authorPane._destroy());
-    };
+    this._showElement('content', false);
+    this._showElement('editEmptyState', false);
+    container.classList.remove('d-none');
 
-    const showPickerFab = () => {
+    const showFab = (editing) => {
       fabPane.classList.remove('d-none');
-      fabPane.innerHTML = `
-        <button type="button" class="btn btn-outline-secondary" id="authorCancelFabBtn">Cancel</button>`;
-      document.getElementById('authorCancelFabBtn').addEventListener('click', () => this._authorPane._destroy());
+
+      fabPane.innerHTML = editing
+        ? `
+          <button type="button"
+            class="btn btn-link btn-sm text-muted"
+            id="authorChangeTypeFabBtn">
+            ← Change type
+          </button>
+          <button type="button"
+            class="btn btn-outline-secondary"
+            id="authorCancelFabBtn">
+            Cancel
+          </button>
+          <button type="button"
+            class="btn btn-primary"
+            id="authorSaveFabBtn">
+            <i class="bi bi-check me-1"></i>Save
+          </button>
+        `
+        : `
+          <button type="button"
+            class="btn btn-outline-secondary"
+            id="authorCancelFabBtn">
+            Cancel
+          </button>
+        `;
+
+      document.getElementById('authorCancelFabBtn')
+        .addEventListener('click', () => this._authorPane._destroy());
+
+      if (!editing) return;
+
+      document.getElementById('authorSaveFabBtn')
+        .addEventListener('click', () => this._authorPane._save());
+
+      document.getElementById('authorChangeTypeFabBtn')
+        .addEventListener('click', () => {
+          this._authorPane._destroyEditors();
+          this._authorPane.selectedType = null;
+          this._authorPane._renderTypePicker();
+          showFab(false);
+        });
     };
 
     const restoreFab = () => {
-      // Rebuild the original nav bar HTML (same as initial HTML in constructor)
-      const L = (key) => t(this.locale, key);
       fabPane.innerHTML = `
-        
-
-        <button type="button" class="btn btn-primary d-none" id="checkBtn" title="Check Question">
-          <i class="bi bi-check"></i> ${L('verifyBtn')}
+        <button type="button"
+          class="btn btn-primary d-none"
+          id="checkBtn">
+          <i class="bi bi-check"></i>
+          ${t(this._options.locale, 'verifyBtn')}
         </button>
-        <button id="quizSubmitBtn" type="button" class="btn btn-danger d-none">${L('submitQuiz')}</button>
-        `;
-      // Re-bind button references and listeners
-      this.prevBtn  = document.getElementById('prevBtn');
-      this.nextBtn  = document.getElementById('nextBtn');
+        <button type="button"
+          class="btn btn-danger d-none"
+          id="quizSubmitBtn">
+          ${t(this._options.locale, 'submitQuiz')}
+        </button>
+      `;
+
       this.checkBtn = document.getElementById('checkBtn');
-      this.prevBtn.addEventListener('click',  () => this.doPrevious());
-      this.nextBtn.addEventListener('click',  () => this.doNext());
+
+      this.checkBtn.addEventListener(
+        'click', () => this.doCheck()
+      );
+
+      document.getElementById('quizSubmitBtn')
+        .addEventListener('click', () => this.doSubmit());
+
       fabPane.classList.remove('d-none');
+      this._resetUI();
+    };
+
+    const closeAuthor = () => {
+      container.classList.add('d-none');
+      this._authorPane = null;
+      restoreFab();
     };
 
     this._authorPane = new AuthorPane(container, {
       question,
       hideFooterBtns: true,
-      onFormReady: () => showFormFab(),
-      onPickerReady: () => showPickerFab(),
-      onSave: (q) => {
-        this.questionLoader.saveUserQuestion(q);
-        container.classList.add('d-none');
-        this._authorPane = null;
-        restoreFab();
-        const idx = this.questions.findIndex(x => x.id === q.id);
-        if (idx >= 0) this.questions[idx] = q;
-        else this.questions.push(q);
-        const originalIndex = this.originalQuestions.findIndex(x => x.id === q.id);
-        if (originalIndex >= 0) this.originalQuestions[originalIndex] = q;
-        else this.originalQuestions.push(q);
-        this.setQuestion(this.questions.findIndex(x => x.id === q.id));
-        document.getElementById('content').classList.remove('d-none');
-        document.getElementById('editControls').classList.remove('d-none');
-        document.getElementById('editControls').classList.add('d-flex');
+
+      onFormReady: () => showFab(true),
+      onPickerReady: () => showFab(false),
+
+      onSave: (savedQuestion) => {
+        this.questionLoader.saveUserQuestion(savedQuestion);
+        closeAuthor();
+
+        this.questions ??= [];
+        this.originalQuestions ??= [];
+
+        const update = (questions) => {
+          const index = questions.findIndex(
+            q => q.id === savedQuestion.id
+          );
+
+          if (index >= 0) {
+            questions[index] = savedQuestion;
+          } else {
+            questions.push(savedQuestion);
+          }
+        };
+
+        update(this.questions);
+        update(this.originalQuestions);
+
+        const index = this.questions.findIndex(
+          q => q.id === savedQuestion.id
+        );
+
+        this.setQuestion(index);
+        this._showElement('content', true);
+        this._showElement('editEmptyState', false);
         this._updateEditBtn();
       },
+
       onCancel: () => {
-        container.classList.add('d-none');
-        this._authorPane = null;
-        restoreFab();
-        if (this.questions.length === 0) {
-          document.getElementById('editEmptyState').classList.remove('d-none');
-        } else {
-          document.getElementById('content').classList.remove('d-none');
-        }
+        closeAuthor();
+
+        const hasQuestions = this.questions?.length > 0;
+
+        this._showElement('content', hasQuestions);
+        this._showElement('editEmptyState', !hasQuestions);
       },
     });
 
-    // Initial fab state depends on whether type picker or form shown
-    if (question) {
-      showFormFab();
-    } else {
-      showPickerFab();
-    }
+    showFab(Boolean(question));
   }
 
-  destroy() {
-    if (this.timerInterval) {
-      clearInterval(this.timerInterval);
-      this.timerInterval = null;
-    }
-    if (this._keyHandler) {
-      document.removeEventListener('keydown', this._keyHandler);
-      this._keyHandler = null;
-    }
+  _showElement(id, visible) {
+    document.getElementById(id)
+      ?.classList.toggle('d-none', !visible);
   }
 
-  setEditable(bool) {
-    this.questionPane.readOnly = !bool;
-    const badge = document.getElementById('editModeBadge');
-    if (bool) {
-      badge.classList.remove('d-none');
-    } else {
-      badge.classList.add('d-none');
-    }
+  setEditable(editable) {
+    this.questionPane.readOnly = !editable;
+    this._showElement('editModeBadge', editable);
   }
 
   updateTimerDisplay() {
-    const mins = Math.floor(this.timeRemaining / 60).toString().padStart(2, '0');
-    const secs = (this.timeRemaining % 60).toString().padStart(2, '0');
-    document.getElementById('quizTimer').textContent = `⏱ ${mins}:${secs}`;
+    const seconds = Math.max(0, this.timeRemaining || 0);
+
+    document.getElementById('quizTimer').textContent =
+      `⏱ ${this._formatTime(seconds)}`;
+  }
+
+  _formatTime(seconds) {
+    const mins = Math.floor(seconds / 60)
+      .toString().padStart(2, '0');
+
+    const secs = (seconds % 60)
+      .toString().padStart(2, '0');
+
+    return `${mins}:${secs}`;
   }
 
   showResultGrid() {
-    const contentEl = document.getElementById('content');
-    const root = contentEl.parentElement;
+    document.getElementById('quizResults')?.remove();
 
-    // Remove any previous result panel
-    const existing = document.getElementById('quizResults');
-    if (existing) existing.remove();
-
-    const resultsDiv = document.createElement('div');
-    resultsDiv.id = 'quizResults';
+    const content = document.getElementById('content');
+    const root = content.parentElement;
 
     const correct = this.results.filter(r => r.correct).length;
     const total = this.results.length;
 
+    const resultsDiv = document.createElement('div');
+    resultsDiv.id = 'quizResults';
+
     const heading = document.createElement('h4');
     heading.className = 'text-center mb-3';
-    heading.textContent = `${t(this.locale, 'quizComplete')} ${correct} / ${total}`;
+    heading.textContent =
+      `${t(this._options.locale, 'quizComplete')} ${correct} / ${total}`;
 
-    if (this.timer) {
-      const timeUsed = this.timer - (this.timeRemaining || 0);
-      const mins = Math.floor(timeUsed / 60).toString().padStart(2, '0');
-      const secs = (timeUsed % 60).toString().padStart(2, '0');
+    resultsDiv.appendChild(heading);
+
+    if (this._options.timer) {
+      const used = this._options.timer -
+        Math.max(0, this.timeRemaining || 0);
+
       const timeEl = document.createElement('p');
       timeEl.className = 'text-center text-muted small mb-2';
-      timeEl.textContent = `${t(this.locale, 'timeUsed')} ${mins}:${secs}`;
-      resultsDiv.appendChild(heading);
+      timeEl.textContent =
+        `${t(this._options.locale, 'timeUsed')} ${this._formatTime(used)}`;
+
       resultsDiv.appendChild(timeEl);
-    } else {
-      resultsDiv.appendChild(heading);
     }
 
     const nav = document.createElement('nav');
     const ul = document.createElement('ul');
-    ul.className = 'pagination flex-wrap justify-content-center';
+
     ul.id = 'resultGrid';
+    ul.className = 'pagination flex-wrap justify-content-center';
+
     nav.appendChild(ul);
     resultsDiv.appendChild(nav);
 
-    contentEl.classList.add('d-none');
-    root.appendChild(resultsDiv);
-
-    this.results.forEach((r, i) => {
-      const colorClass = r.correct ? 'bg-success text-white' : (r.answered ? 'bg-danger text-white' : 'bg-secondary text-white');
+    this.results.forEach((result, index) => {
       const li = document.createElement('li');
+      const span = document.createElement('span');
+
       li.className = 'page-item m-1';
       li.style.cursor = 'pointer';
-      const span = document.createElement('span');
-      span.className = `page-link ${colorClass}`;
-      span.textContent = i + 1;
+
+      const color = result.correct
+        ? 'bg-success'
+        : result.answered ? 'bg-danger' : 'bg-secondary';
+
+      span.className = `page-link ${color} text-white`;
+      span.textContent = index + 1;
+
       li.appendChild(span);
-      li.addEventListener('click', () => this._showResultQuestion(i));
+
+      li.addEventListener('click', () =>
+        this._showResultQuestion(index)
+      );
+
       ul.appendChild(li);
     });
+
+    content.classList.add('d-none');
+    root.appendChild(resultsDiv);
   }
 
   _showResultQuestion(index) {
     const resultsDiv = document.getElementById('quizResults');
-    const contentEl = document.getElementById('content');
+    const content = document.getElementById('content');
 
-    if (!document.getElementById('backToResultsBtn')) {
-      const backBtn = document.createElement('button');
+    let backBtn = document.getElementById('backToResultsBtn');
+
+    if (!backBtn) {
+      backBtn = document.createElement('button');
+
       backBtn.id = 'backToResultsBtn';
-      backBtn.className = 'btn btn-outline-secondary btn-sm mb-2';
-      backBtn.textContent = t(this.locale, 'backToResults');
+      backBtn.className =
+        'btn btn-outline-secondary btn-sm mb-2';
+
+      backBtn.textContent =
+        t(this._options.locale, 'backToResults');
+
       backBtn.addEventListener('click', () => {
-        contentEl.classList.add('d-none');
-        backBtn.remove();
+        content.classList.add('d-none');
         resultsDiv.classList.remove('d-none');
+        backBtn.remove();
       });
-      contentEl.parentElement.insertBefore(backBtn, contentEl);
+
+      content.parentElement.insertBefore(backBtn, content);
     }
 
     resultsDiv.classList.add('d-none');
-    contentEl.classList.remove('d-none');
+    content.classList.remove('d-none');
 
     this.setQuestion(index);
-    document.getElementById('quizSubmitBtn').classList.add('d-none');
+
+    document.getElementById('quizSubmitBtn')
+      .classList.add('d-none');
 
     const question = this.questions[index];
-    const savedAnswer = this.userAnswers[question.id] || '';
-    if (savedAnswer) {
-      this._restoreAnswer(question, savedAnswer);
+    const answer = this.userAnswers[question.id] || '';
+
+    if (answer) {
+      this._restoreAnswer(question, answer);
     }
 
     this.doExplain(true);
 
-    const r = this.results[index];
-    if (this.explainToggleBtn) {
-      const label = r.correct ? t(this.locale, 'correctAnswer') : (r.answered ? t(this.locale, 'wrongAnswer') : t(this.locale, 'notAttempted'));
-      const btnClass = r.correct ? 'btn-success' : (r.answered ? 'btn-danger' : 'btn-secondary');
-      this.explainToggleBtn.firstElementChild.textContent = label;
-      this.explainToggleBtn.classList.remove('btn-success', 'btn-danger', 'btn-secondary', 'd-none');
-      this.explainToggleBtn.classList.add(btnClass);
-    }
+    const result = this.results[index];
+
+    const label = result.correct
+      ? 'correctAnswer'
+      : result.answered ? 'wrongAnswer' : 'notAttempted';
+
+    const color = result.correct
+      ? 'btn-success'
+      : result.answered ? 'btn-danger' : 'btn-secondary';
+
+    this.explainToggleBtn.firstElementChild.textContent =
+      t(this._options.locale, label);
+
+    this.explainToggleBtn.classList.remove(
+      'btn-success',
+      'btn-danger',
+      'btn-secondary',
+      'd-none'
+    );
+
+    this.explainToggleBtn.classList.add(color);
   }
 
   _restoreAnswer(question, answerText) {
+    const container = this.questionPane.answerContainer;
+
     switch (question.type) {
       case 'CHOOSE_THE_BEST': {
-        const inputs = this.questionPane.answerContainer.querySelectorAll('input[type="radio"]');
-        inputs.forEach(input => { input.checked = input.value === answerText; });
+        container.querySelectorAll('input[type="radio"]')
+          .forEach(input => {
+            input.checked = input.value === answerText;
+          });
         break;
       }
+
       case 'MULTI_CHOICE': {
-        const selected = answerText.split(',').map(s => s.trim());
-        const inputs = this.questionPane.answerContainer.querySelectorAll('input[type="checkbox"]');
-        inputs.forEach(input => { input.checked = selected.includes(input.value); });
+        const selected = answerText
+          .split(',')
+          .map(id => id.trim());
+
+        container.querySelectorAll('input[type="checkbox"]')
+          .forEach(input => {
+            input.checked = selected.includes(input.value);
+          });
         break;
       }
-      case 'TEXT_ANSWER': {
-        const inp = this.questionPane.answerContainer.querySelector(`[data-qid="${question.id}"]`);
-        if (inp) inp.value = answerText;
-        break;
-      }
+
+      case 'TEXT_ANSWER':
       case 'NUMBER_ANSWER': {
-        const inp = this.questionPane.answerContainer.querySelector(`[data-qid="${question.id}"]`);
-        if (inp) inp.value = answerText;
+        const input = container.querySelector(
+          `[data-qid="${question.id}"]`
+        );
+
+        if (input) input.value = answerText;
         break;
       }
     }
+  }
+
+  destroy() {
+    this._stopTimer();
+
+    if (this._keyHandler) {
+      document.removeEventListener('keydown', this._keyHandler);
+      this._keyHandler = null;
+    }
+
+    if (this._popstateHandler) {
+      window.removeEventListener(
+        'popstate', this._popstateHandler
+      );
+      this._popstateHandler = null;
+    }
+
+    this._authorPane?._destroyEditors?.();
+    this._authorPane = null;
   }
 }

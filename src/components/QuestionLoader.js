@@ -2,7 +2,7 @@ import {
   loadUserQuestions,
   saveUserQuestion,
   deleteUserQuestion,
-} from "./storage";
+} from "../storage";
 
 const remoteQuestionsCache = new Map();
 
@@ -40,7 +40,6 @@ const remoteQuestionsCache = new Map();
 
   set tags(value) {
     this._tags = value;
-    console.log(`tags set to: ${value}`);
   }
 
   get shuffleQuestions() {

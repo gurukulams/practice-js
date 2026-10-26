@@ -19,7 +19,20 @@ export default class PlaygroundApp {
         };
 
         this.practiceMaker = new PracticeMaker.default(container, options);
-        this.practiceMaker.setEditable(false)
+
+        const modeSelect = document.getElementById("modeSelect");
+
+        modeSelect.addEventListener('change', () => {
+            this.practiceMaker.mode = modeSelect.value;
+        });
+
+        const langSelect = document.getElementById("langSelect");
+
+        langSelect.addEventListener('change', () => {
+            this.practiceMaker.locale = langSelect.value;
+        });
+
+ 
         await this.practiceMaker.ready;
         return this.practiceMaker;
     }
