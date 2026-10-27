@@ -214,7 +214,7 @@ export default class PlaygroundApp {
      */
     async _loadQuestionPaths() {
         try {
-            const response = await fetch('/data/q-map.json');
+            const response = await fetch('./data/q-map.json');
 
             if (!response.ok) {
                 throw new Error(
