@@ -19892,6 +19892,12 @@
     setQuestion(_question) {
       this.question = _question;
 
+      // 1. CLEAR OLD DOM ELEMENTS COMPLETELY TO PREVENT STALE/CACHED DATA
+      this.answerContainer.replaceChildren();
+      this.matcheContainer.replaceChildren();
+      this.questionContainer.innerHTML = '';
+      this.explanationContainer.innerHTML = '';
+
       this.questionContainer.innerHTML = marked$1(_question.question || '');
 
       renderMathInElement(this.questionContainer, {
@@ -19913,136 +19919,109 @@
       this.questionContainer.classList.remove('d-none');
       this.matcheContainer.classList.add('d-none');
 
-      const answerComponent = this.getAnswerComponent( _question.id);
-      if(!answerComponent) {
-        switch (_question.type) {
-          case "CHOOSE_THE_BEST":
-            this.chooseTheBestList = new ChoiceList(this.isEditable, "radioList", this.shuffle(_question.choices));
-            this.answerContainer.appendChild(this.chooseTheBestList.element);
-            this.chooseTheBestList.element.name = _question.id;
-            break;
-          case "MULTI_CHOICE":
-            this.mcqList = new ChoiceList(this.isEditable,"checkboxList", this.shuffle(_question.choices));
-            this.answerContainer.appendChild(this.mcqList.element);
-            this.mcqList.element.name = _question.id;
-            break;
-          case "MATCH_THE_FOLLOWING":
-            this.mtfList = new ChoiceList(this.isEditable,"matchesList", this.shuffle(_question.matches));
-            this.answerContainer.appendChild(this.mtfList.element);
-            this.mtfList.element.name = _question.id;
-    
-            this.mtfChoicesList = new ChoiceList(this.isEditable,"matchesList", _question.choices, true);
-            
-            break;
-          case "TEXT_ANSWER": {
-            const wrapper = document.createElement('div');
-            wrapper.className = 'mt-3';
-            wrapper.name = _question.id;
-            const label = document.createElement('label');
-            label.className = 'form-label fw-semibold';
-            label.textContent = this.isEditable ? 'Correct Answer' : 'Your answer';
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.className = 'form-control form-control-lg';
-            input.id = 'textAnswerInput';
-            input.dataset.qid = _question.id;
-            if (this.isEditable) {
-              input.value = _question.answer || '';
-              input.readOnly = true;
-              input.className += ' bg-light text-muted';
-            } else {
-              input.placeholder = 'Type your answer...';
-              input.value = '';
-            }
-            wrapper.appendChild(label);
-            wrapper.appendChild(input);
-            this.answerContainer.appendChild(wrapper);
-            break;
+      // Since we cleared answerContainer above, we should always build fresh elements 
+      // or ensure if you use getAnswerComponent, its inner elements are repopulated.
+      // Creating them fresh guarantees the new localized choices are rendered:
+      switch (_question.type) {
+        case "CHOOSE_THE_BEST":
+          this.chooseTheBestList = new ChoiceList(this.isEditable, "radioList", this.shuffle(_question.choices));
+          this.answerContainer.appendChild(this.chooseTheBestList.element);
+          this.chooseTheBestList.element.name = _question.id;
+          break;
+        case "MULTI_CHOICE":
+          this.mcqList = new ChoiceList(this.isEditable, "checkboxList", this.shuffle(_question.choices));
+          this.answerContainer.appendChild(this.mcqList.element);
+          this.mcqList.element.name = _question.id;
+          break;
+        case "MATCH_THE_FOLLOWING":
+          this.mtfList = new ChoiceList(this.isEditable, "matchesList", this.shuffle(_question.matches));
+          this.answerContainer.appendChild(this.mtfList.element);
+          this.mtfList.element.name = _question.id;
+
+          this.mtfChoicesList = new ChoiceList(this.isEditable, "matchesList", _question.choices, true);
+          break;
+        case "TEXT_ANSWER": {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'mt-3';
+          wrapper.name = _question.id;
+          const label = document.createElement('label');
+          label.className = 'form-label fw-semibold';
+          label.textContent = this.isEditable ? 'Correct Answer' : 'Your answer';
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.className = 'form-control form-control-lg';
+          input.id = 'textAnswerInput';
+          input.dataset.qid = _question.id;
+          if (this.isEditable) {
+            input.value = _question.answer || '';
+            input.readOnly = true;
+            input.className += ' bg-light text-muted';
+          } else {
+            input.placeholder = 'Type your answer...';
+            input.value = '';
           }
-          case "NUMBER_ANSWER": {
-            const wrapper = document.createElement('div');
-            wrapper.className = 'mt-3';
-            wrapper.name = _question.id;
-            const label = document.createElement('label');
-            label.className = 'form-label fw-semibold';
-            label.textContent = this.isEditable ? 'Correct Answer' : 'Your answer';
-            const input = document.createElement('input');
-            input.type = 'number';
-            input.className = 'form-control form-control-lg';
-            input.id = 'numberAnswerInput';
-            input.dataset.qid = _question.id;
-            if (this.isEditable) {
-              input.value = _question.answer != null ? _question.answer : '';
-              input.readOnly = true;
-              input.className += ' bg-light text-muted';
-            } else {
-              input.placeholder = 'Enter a number...';
-              input.value = '';
-            }
-            wrapper.appendChild(label);
-            wrapper.appendChild(input);
-            this.answerContainer.appendChild(wrapper);
-            break;
-          }
+          wrapper.appendChild(label);
+          wrapper.appendChild(input);
+          this.answerContainer.appendChild(wrapper);
+          break;
         }
-      } else {
-        switch (_question.type) {
-          case "CHOOSE_THE_BEST":
-            this.chooseTheBestList = answerComponent.container ;
-            break;
-          case "MULTI_CHOICE":
-            this.mcqList = answerComponent.container ;
-            break;
-          case "MATCH_THE_FOLLOWING":
-            this.mtfList = answerComponent.container ;
-    
-            this.mtfChoicesList = new ChoiceList(this.isEditable,"matchesList", _question.choices, true);
-            
-            break;
-          case "TEXT_ANSWER":
-            answerComponent.querySelector('#textAnswerInput').value = '';
-            break;
-          case "NUMBER_ANSWER":
-            answerComponent.querySelector('#numberAnswerInput').value = '';
-            break;
+        case "NUMBER_ANSWER": {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'mt-3';
+          wrapper.name = _question.id;
+          const label = document.createElement('label');
+          label.className = 'form-label fw-semibold';
+          label.textContent = this.isEditable ? 'Correct Answer' : 'Your answer';
+          const input = document.createElement('input');
+          input.type = 'number';
+          input.className = 'form-control form-control-lg';
+          input.id = 'numberAnswerInput';
+          input.dataset.qid = _question.id;
+          if (this.isEditable) {
+            input.value = _question.answer != null ? _question.answer : '';
+            input.readOnly = true;
+            input.className += ' bg-light text-muted';
+          } else {
+            input.placeholder = 'Enter a number...';
+            input.value = '';
+          }
+          wrapper.appendChild(label);
+          wrapper.appendChild(input);
+          this.answerContainer.appendChild(wrapper);
+          break;
         }
       }
 
-      if(_question.type === "MATCH_THE_FOLLOWING") {
+      if (_question.type === "MATCH_THE_FOLLOWING") {
         this.matcheContainer.innerHTML = '<p class="text-muted small mb-1 fw-semibold">Match each item →</p>';
-            this.matcheContainer.appendChild(this.mtfChoicesList.element);
-            this.mtfChoicesList.element.querySelectorAll("li>span").forEach(element=> {
-              element.parentElement.removeChild(element);
-            });
-            this.matcheContainer.classList.remove('d-none');
-            this.questionContainer.classList.add('d-none');
+        this.matcheContainer.appendChild(this.mtfChoicesList.element);
+        this.mtfChoicesList.element.querySelectorAll("li>span").forEach(element => {
+          element.parentElement.removeChild(element);
+        });
+        this.matcheContainer.classList.remove('d-none');
+        this.questionContainer.classList.add('d-none');
 
-            // Add header above right (answer) list
-            const existingHdr = this.answerContainer.querySelector('.mtf-header');
-            if (!existingHdr) {
-              const hdr = document.createElement('p');
-              hdr.className = 'text-muted small mb-1 fw-semibold mtf-header';
-              hdr.textContent = '← Reorder to match';
-              this.answerContainer.insertBefore(hdr, this.mtfList.element);
-            }
+        const existingHdr = this.answerContainer.querySelector('.mtf-header');
+        if (!existingHdr) {
+          const hdr = document.createElement('p');
+          hdr.className = 'text-muted small mb-1 fw-semibold mtf-header';
+          hdr.textContent = '← Reorder to match';
+          this.answerContainer.insertBefore(hdr, this.mtfList.element);
+        }
 
-            renderMathInElement(this.mtfList.element, {
-              delimiters: [
-                { left: '$$', right: '$$', display: true },
-                { left: '$', right: '$', display: false }
-              ]
-            });
-            renderMathInElement(this.mtfChoicesList.element, {
-              delimiters: [
-                { left: '$$', right: '$$', display: true },
-                { left: '$', right: '$', display: false }
-              ]
-            });
-
+        renderMathInElement(this.mtfList.element, {
+          delimiters: [
+            { left: '$$', right: '$$', display: true },
+            { left: '$', right: '$', display: false }
+          ]
+        });
+        renderMathInElement(this.mtfChoicesList.element, {
+          delimiters: [
+            { left: '$$', right: '$$', display: true },
+            { left: '$', right: '$', display: false }
+          ]
+        });
       }
-      
-
-
     }
 
     getAnswerComponent(questionId) {
@@ -40697,9 +40676,41 @@
     async setOptions(changes = {}) {
       this._options = this._normalizeOptions(changes);
       this._stopTimer();
+      
+      // 1. Re-initialize QuestionLoader with the new locale/languageCode
       this.questionLoader = new QuestionLoader(this._loaderOptions());
+      
+      // 2. Re-render dynamic UI text labels that use locale (t())
+      this._updateLocalizedUI();
+
       this._resetUI();
       return this.loadQuestions();
+    }
+
+    // Helper to refresh static UI text when locale changes
+    _updateLocalizedUI() {
+      const L = (key) => t(this._options.locale, key);
+
+      // Update Edit Mode Badge
+      const editBadge = document.getElementById('editModeBadge');
+      if (editBadge) editBadge.textContent = L('editModeBadge');
+
+      // Update Not Found Screen
+      const notFoundText = document.querySelector('#notfound p.fs-3');
+      if (notFoundText) notFoundText.textContent = L('noQuestions');
+      
+      const notFoundBtn = document.querySelector('#notfound a.btn-primary');
+      if (notFoundBtn) notFoundBtn.textContent = L('goBack');
+
+      // Update Verify / Check Button
+      const checkBtnText = document.getElementById('checkBtn');
+      if (checkBtnText) {
+        checkBtnText.innerHTML = `<i class="bi bi-check"></i> ${L('verifyBtn')}`;
+      }
+
+      // Update Submit Quiz Button
+      const submitBtn = document.getElementById('quizSubmitBtn');
+      if (submitBtn) submitBtn.textContent = L('submitQuiz');
     }
 
     _resetUI() {

@@ -271,9 +271,41 @@ export default class PracticeMaker {
   async setOptions(changes = {}) {
     this._options = this._normalizeOptions(changes);
     this._stopTimer();
+    
+    // 1. Re-initialize QuestionLoader with the new locale/languageCode
     this.questionLoader = new QuestionLoader(this._loaderOptions());
+    
+    // 2. Re-render dynamic UI text labels that use locale (t())
+    this._updateLocalizedUI();
+
     this._resetUI();
     return this.loadQuestions();
+  }
+
+  // Helper to refresh static UI text when locale changes
+  _updateLocalizedUI() {
+    const L = (key) => t(this._options.locale, key);
+
+    // Update Edit Mode Badge
+    const editBadge = document.getElementById('editModeBadge');
+    if (editBadge) editBadge.textContent = L('editModeBadge');
+
+    // Update Not Found Screen
+    const notFoundText = document.querySelector('#notfound p.fs-3');
+    if (notFoundText) notFoundText.textContent = L('noQuestions');
+    
+    const notFoundBtn = document.querySelector('#notfound a.btn-primary');
+    if (notFoundBtn) notFoundBtn.textContent = L('goBack');
+
+    // Update Verify / Check Button
+    const checkBtnText = document.getElementById('checkBtn');
+    if (checkBtnText) {
+      checkBtnText.innerHTML = `<i class="bi bi-check"></i> ${L('verifyBtn')}`;
+    }
+
+    // Update Submit Quiz Button
+    const submitBtn = document.getElementById('quizSubmitBtn');
+    if (submitBtn) submitBtn.textContent = L('submitQuiz');
   }
 
   _resetUI() {
