@@ -236,6 +236,7 @@ export default class PracticeMaker {
   _loaderOptions() {
     const o = this._options;
     return {
+      baseUrl: o.baseUrl,            // <-- add this
       repoUrl: o.repoUrl,
       languageCode: o.languageCode ?? o.locale,
       questions: o.questions,
@@ -264,6 +265,9 @@ export default class PracticeMaker {
 
   get locale() { return this._options.locale; }
   set locale(value) { void this.setOptions({ locale: value }); }
+
+  get baseUrl() { return this._options.baseUrl; }
+  set baseUrl(value) { void this.setOptions({ baseUrl: value }); }
 
   get repoUrl() { return this._options.repoUrl; }
   set repoUrl(value) { void this.setOptions({ repoUrl: value }); }

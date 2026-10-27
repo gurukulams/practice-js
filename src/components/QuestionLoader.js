@@ -7,22 +7,26 @@ import {
 const remoteQuestionsCache = new Map();
 
 /**
- * Questions Loader is responsible to load, filter and shuffle questions fom repository.
+ * Questions Loader is responsible to load, filter and shuffle questions from repository.
+ *
+ * Questions are fetched from: baseUrl + "/data/" + repoUrl
+ *
  * Sample Usage
- * const qL = new QuestionLoader();
- * qL.repoUrl = "";
- * qL.languageCode = 'ta'
+ * const qL = new QuestionLoader({ baseUrl: "https://www.example.com" });
+ * qL.repoUrl = "maths/algebra";
+ * qL.languageCode = "ta";
  * qL.maxQuestions = 5;
- * qL.shuffle = true;
- * qL.tags = ["tag1","tag3"];
+ * qL.shuffleQuestions = true;
+ * qL.tags = ["tag1", "tag3"];
  *
- * const questionsarray = qL.loadQuestions();
+ * const questionsArray = await qL.loadQuestions();
  *
- * console.log(questionsarray);
+ * console.log(questionsArray);
  */
- export default class QuestionLoader {
+export default class QuestionLoader {
   constructor(options = {}) {
-    this._repoUrl = options.repoUrl || null;
+    this._baseUrl = options.baseUrl || ""; // e.g. "https://www.example.com"
+    this._repoUrl = options.repoUrl || null; // e.g. "maths/algebra"
     this._languageCode =
       options.languageCode === "en" ? "" : options.languageCode || null;
     this._maxQuestions = options.maxQuestions ?? options.maxQ ?? null;
@@ -50,6 +54,14 @@ const remoteQuestionsCache = new Map();
     this._shuffle = Boolean(value);
   }
 
+  get baseUrl() {
+    return this._baseUrl;
+  }
+
+  set baseUrl(value) {
+    this._baseUrl = value || "";
+  }
+
   get repoUrl() {
     return this._repoUrl;
   }
@@ -75,16 +87,20 @@ const remoteQuestionsCache = new Map();
   }
 
   async loadSourceQuestions() {
-    const questions = this._questions !== null
-      ? this._questions
-      : this._repoUrl
-        ? await this.getQuestions()
-        : [];
+    const questions =
+      this._questions !== null
+        ? this._questions
+        : this._repoUrl
+          ? await this.getQuestions()
+          : [];
     const allQuestions = this._includeUserQuestions
-      ? [...questions, ...loadUserQuestions().map((question) => ({
-          ...question,
-          _source: "user",
-        }))]
+      ? [
+          ...questions,
+          ...loadUserQuestions().map((question) => ({
+            ...question,
+            _source: "user",
+          })),
+        ]
       : questions;
     this.originalQuestions = JSON.parse(JSON.stringify(allQuestions));
     return allQuestions;
@@ -98,184 +114,138 @@ const remoteQuestionsCache = new Map();
   }
 
   async loadQuestions(options = {}) {
-    return this.#filterQuestions(
-      await this.loadSourceQuestions(),
-      options
-    );
+    return this.#filterQuestions(await this.loadSourceQuestions(), options);
   }
 
+  async getQuestions() {
+    const baseUrl = this._baseUrl.replace(/\/+$/, "");
+    const repoPath = this._repoUrl.replace(/^\/+|\/+$/g, "");
+    const dataRootUrl = `${baseUrl}/data`;
+    const cacheKey = `${dataRootUrl}\0${repoPath}\0${this._languageCode || ""}`;
 
-async getQuestions() {
-  const baseUrl = this._repoUrl.replace(/\/+$/, "");
-  const cacheKey = `${baseUrl}\0${this._languageCode || ""}`;
-
-  if (remoteQuestionsCache.has(cacheKey)) {
+    if (remoteQuestionsCache.has(cacheKey)) {
       return structuredClone(remoteQuestionsCache.get(cacheKey));
-  }
+    }
 
-  const fetchJSON = async (url) => {
+    const fetchJSON = async (url) => {
       const response = await fetch(url);
 
       if (response.status === 404) return null;
 
       if (!response.ok) {
-          throw new Error(
-              `Failed to load questions (${response.status}): ${url}`
-          );
+        throw new Error(`Failed to load questions (${response.status}): ${url}`);
       }
 
       return response.json();
-  };
+    };
 
-  /**
-   * Resolve localized questions.
-   *
-   * A numeric entry refers to the corresponding question
-   * in the default questions.json file.
-   */
-  const resolveLocalized = (localized, fallback) => {
-      return localized.map(q =>
-          typeof q === "number" ? fallback[q] : q
-      );
-  };
+    /**
+     * Resolve localized questions.
+     *
+     * A numeric entry refers to the corresponding question
+     * in the default questions.json file.
+     */
+    const resolveLocalized = (localized, fallback) =>
+      localized.map((q) => (typeof q === "number" ? fallback[q] : q));
 
-  /**
-   * Load questions from a single folder.
-   */
-  const collectQuestions = async (folderUrl) => {
-      const defaultQs = await fetchJSON(
-          `${folderUrl}/questions.json`
-      );
+    /**
+     * Load questions from a single folder.
+     */
+    const collectQuestions = async (folderUrl, folderPath) => {
+      const defaultQs = await fetchJSON(`${folderUrl}/questions.json`);
 
       if (!defaultQs) return [];
 
       const localizedQs = this._languageCode
-          ? await fetchJSON(
-              `${folderUrl}/questions_${this._languageCode}.json`
-          )
-          : null;
+        ? await fetchJSON(`${folderUrl}/questions_${this._languageCode}.json`)
+        : null;
 
       const finalQs = localizedQs
-          ? resolveLocalized(localizedQs, defaultQs)
-          : defaultQs;
+        ? resolveLocalized(localizedQs, defaultQs)
+        : defaultQs;
 
-      return this.processQuestions(finalQs, folderUrl);
-  };
+      return this.processQuestions(finalQs, folderUrl, folderPath);
+    };
 
-  /**
-   * Find the subtree corresponding to repoUrl.
-   *
-   * Example:
-   * repoUrl = /data/social-science/history
-   *
-   * q-map.json contains:
-   * {
-   *   "social-science": {
-   *     "history": {
-   *       "world-war-ii": {}
-   *     }
-   *   }
-   * }
-   */
-   const normalizedUrl = baseUrl.replace(/\/+$/, "");
+    /**
+     * Fetch the map from the root data folder.
+     *
+     * Example: repoUrl = "social-science/history"
+     *
+     * q-map.json contains:
+     * {
+     *   "social-science": {
+     *     "history": {
+     *       "world-war-ii": {}
+     *     }
+     *   }
+     * }
+     */
+    const questionMap = await fetchJSON(`${dataRootUrl}/q-map.json`);
 
-   const match = normalizedUrl.match(/^(.*?)(?:^|\/)data(?:\/(.*))?$/);
-   
-   if (!match) {
-       throw new Error(
-           `Invalid repoUrl: ${baseUrl}. Expected a path containing data.`
-       );
-   }
-   
-   const prefix = match[1].replace(/\/$/, "");
-   
-   const dataRootUrl = prefix
-       ? `${prefix}/data`
-       : normalizedUrl.startsWith("/")
-           ? "/data"
-           : "data";
-   
-   const relativePath = match[2] || "";
+    if (!questionMap) {
+      throw new Error(`Question map not found: ${dataRootUrl}/q-map.json`);
+    }
 
-  // Fetch the map from the root data folder.
-  const questionMap = await fetchJSON(
-      `${dataRootUrl}/q-map.json`
-  );
+    // Navigate to the requested subtree.
+    let subtree = questionMap;
 
-  if (!questionMap) {
-      throw new Error(
-          `Question map not found: ${dataRootUrl}/q-map.json`
-      );
-  }
-
-  // Navigate to the requested subtree.
-  const segments = relativePath
-      .split("/")
-      .filter(Boolean);
-
-  let subtree = questionMap;
-
-  for (const segment of segments) {
+    for (const segment of repoPath.split("/").filter(Boolean)) {
       if (
-          !subtree ||
-          !Object.prototype.hasOwnProperty.call(subtree, segment)
+        !subtree ||
+        !Object.prototype.hasOwnProperty.call(subtree, segment)
       ) {
-          // Requested folder is not present in the map.
-          return [];
+        // Requested folder is not present in the map.
+        return [];
       }
 
       subtree = subtree[segment];
-  }
+    }
 
-  /**
-   * Collect all question folder URLs from the subtree.
-   *
-   * Leaf folders are included because the map generator
-   * guarantees that they contain questions.json.
-   *
-   * Parent folders are also included because they may
-   * contain their own questions.json.
-   */
-  const folderUrls = [];
+    /**
+     * Collect all question folders from the subtree.
+     *
+     * Leaf folders are included because the map generator
+     * guarantees that they contain questions.json.
+     *
+     * Parent folders are also included because they may
+     * contain their own questions.json.
+     */
+    const folders = [];
 
-  const collectFolders = (node, folderUrl) => {
-      folderUrls.push(folderUrl);
+    const collectFolders = (node, folderPath) => {
+      folders.push({
+        path: folderPath,
+        url: folderPath ? `${dataRootUrl}/${folderPath}` : dataRootUrl,
+      });
 
       for (const [name, children] of Object.entries(node)) {
-          collectFolders(
-              children,
-              `${folderUrl}/${encodeURIComponent(name)}`
-          );
+        const childPath = folderPath
+          ? `${folderPath}/${encodeURIComponent(name)}`
+          : encodeURIComponent(name);
+        collectFolders(children, childPath);
       }
-  };
+    };
 
-  collectFolders(subtree, baseUrl);
+    collectFolders(subtree, repoPath);
 
-  /**
-   * Load questions from all folders in parallel.
-   *
-   * Missing questions.json files return an empty array.
-   */
-  const results = await Promise.all(
-      folderUrls.map(folderUrl =>
-          collectQuestions(folderUrl)
-      )
-  );
+    /**
+     * Load questions from all folders in parallel.
+     *
+     * Missing questions.json files return an empty array.
+     */
+    const results = await Promise.all(
+      folders.map(({ url, path }) => collectQuestions(url, path))
+    );
 
-  const questions = results.flat();
+    const questions = results.flat();
 
-  console.log(questions);
+    remoteQuestionsCache.set(cacheKey, questions);
 
-  remoteQuestionsCache.set(cacheKey, questions);
+    return structuredClone(questions);
+  }
 
-  return structuredClone(questions);
-}
-
-
-  #filterQuestions(
-    questions,
-    options = {}
-  ) {
+  #filterQuestions(questions, options = {}) {
     if (!Array.isArray(questions)) return [];
 
     if (options === null || typeof options !== "object") {
@@ -319,7 +289,7 @@ async getQuestions() {
     deleteUserQuestion(id);
   }
 
-  processQuestions(questions, folderUrl) {
+  processQuestions(questions, folderUrl, folderPath) {
     /**
      * Browser-safe URL joiner replacing path.posix.join
      */
@@ -379,7 +349,9 @@ async getQuestions() {
 
       return updatedQuestion;
     };
-    const baseId = folderUrl.split("/data/")[1];
+
+    // Relative folder path (e.g. "maths/algebra"), independent of baseUrl.
+    const baseId = folderPath;
     return questions.map((rawQ, qIndex) => {
       const q = appendFullPath(folderUrl, rawQ);
       const questionId = `${baseId}-q${qIndex}`;
@@ -412,5 +384,4 @@ async getQuestions() {
     }
     return array;
   }
-
 }

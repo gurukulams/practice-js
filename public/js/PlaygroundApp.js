@@ -144,7 +144,7 @@ export default class PlaygroundApp {
                 .replace(/\/+$/, '');
 
             void this._setOptions({
-                repoUrl: `/data/${normalizedPath}`
+                repoUrl: `${normalizedPath}`
             });
         };
 
