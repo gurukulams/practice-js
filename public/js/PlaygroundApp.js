@@ -110,6 +110,8 @@ export default class PlaygroundApp {
             o.complexity ?? '';
         document.getElementById('timerInput').value = o.timer ?? '';
 
+        document.getElementById('repoUrlInput').value = o.baseUrl ?? '';
+
         document.getElementById('qPathInput').value =
             o.repoUrl?.replace(/^\/?data\//, '') ?? '';
     }
@@ -170,8 +172,10 @@ export default class PlaygroundApp {
             const complexity =
                 document.getElementById('complexityCmb').value;
             const timer = document.getElementById('timerInput').value;
+            const baseUrl = document.getElementById('repoUrlInput').value;
 
             await this._setOptions({
+                baseUrl: baseUrl,
                 maxQ: maxQ ? Number(maxQ) : null,
                 complexity: complexity || null,
                 timer: timer ? Number(timer) : null
