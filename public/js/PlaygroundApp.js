@@ -148,6 +148,10 @@ export default class PlaygroundApp {
             });
         };
 
+        qPathInput.addEventListener('focus', () => {
+            qPathInput.select();
+        });
+
         qPathInput.addEventListener('change', updatePath);
         qPathInput.addEventListener('blur', updatePath);
 
