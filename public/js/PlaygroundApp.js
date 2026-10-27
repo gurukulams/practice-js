@@ -232,9 +232,12 @@ export default class PlaygroundApp {
             });
 
             const qPathInput = document.getElementById('qPathInput');
-            qPathInput.value = paths[0];
-            // Trigger the existing change event listener
-            qPathInput.dispatchEvent(new Event('change', { bubbles: true }));
+            if(qPathInput.value.trim().length == 0) {
+                qPathInput.value = paths[0];
+                // Trigger the existing change event listener
+                qPathInput.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+
  
 
         } catch (error) {
