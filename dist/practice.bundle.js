@@ -16708,232 +16708,399 @@
     _renderElem(elem, optionsCopy);
   };
 
-  // Use the pre-compiled .mjs file for best compatibility with Rollup
-
-
+  /**
+   * Renders and manages choices for practice questions.
+   *
+   * Supported templates:
+   * - radioList: Single-choice questions
+   * - checkboxList: Multiple-choice questions
+   * - matchesList: Ordering / matching questions
+   *
+   * Features:
+   * - Supports any number of choices.
+   * - Uses choice IDs supplied by the question loader.
+   * - Supports text, images and KaTeX expressions.
+   * - Supports moving matching choices up and down.
+   * - Provides answer collection and visual verification.
+   *
+   * Expected choice format:
+   *
+   * {
+   *   id: "choice-1",
+   *   label: "Using $x^2$",
+   *   image: null,
+   *   answer: true
+   * }
+   *
+   * Usage:
+   *
+   * const list = new ChoiceList(
+   *   false,
+   *   'checkboxList',
+   *   question.choices,
+   *   true
+   * );
+   *
+   * container.appendChild(list.element);
+   *
+   * const selectedAnswers = list.answer;
+   */
   class ChoiceList {
+
+    /**
+     * @param {boolean} isPracticeMode
+     *   When true, preselect choices marked as correct.
+     *
+     * @param {'radioList'|'checkboxList'|'matchesList'} templateName
+     *   Determines the choice UI.
+     *
+     * @param {Array<Object>} choices
+     *   Choices with runtime-generated IDs.
+     *
+     * @param {boolean} keepOrder
+     *   Retained for compatibility with the existing API.
+     *   Choice ordering is managed by the caller.
+     */
     constructor(isPracticeMode, templateName, choices, keepOrder) {
+      this.isPracticeMode = isPracticeMode;
+      this.templateName = templateName;
+      this.keepOrder = keepOrder;
+      this.isMatches = templateName === 'matchesList';
 
-      var templateEL = document.createElement('template');
-      templateEL.innerHTML = `<ul class="list-group">
-    <li class="list-group-item p-0"><label for="c1" class="d-flex align-items-center p-2 w-100 m-0"><input class="form-check-input me-2" type="radio" name="flexRadioDefault" id="c1">
-      <span class="form-check-label w-100">Option 1</span></label>
-   </li>
-   <li class="list-group-item p-0"><label for="c2" class="d-flex align-items-center p-2 w-100 m-0"><input class="form-check-input me-2" type="radio" name="flexRadioDefault" id="c2">
-      <span class="form-check-label w-100">Option 2</span></label>
-   </li>
-   <li class="list-group-item p-0"><label for="c3" class="d-flex align-items-center p-2 w-100 m-0"><input class="form-check-input me-2" type="radio" name="flexRadioDefault" id="c3">
-      <span class="form-check-label w-100">Option 3</span></label>
-   </li>
-   <li class="list-group-item p-0"><label for="c4" class="d-flex align-items-center p-2 w-100 m-0"><input class="form-check-input me-2" type="radio" name="flexRadioDefault" id="c4">
-      <span class="form-check-label w-100">Option 4</span></label>
-   </li>
-   <li class="list-group-item p-0"><label for="c5" class="d-flex align-items-center p-2 w-100 m-0"><input class="form-check-input me-2" type="radio" name="flexRadioDefault" id="c5">
-      <span class="form-check-label w-100">Option 5</span></label>
-   </li>
-  </ul>`;
-      templateEL.id = "radioList";
-      document.body.appendChild(templateEL);
+      if (!Array.isArray(choices)) {
+        throw new TypeError('ChoiceList expects an array of choices');
+      }
 
-      var templateCL = document.createElement('template');
-      templateCL.innerHTML = `<ul class="list-group">
-    <li class="list-group-item p-0"><label for="mc1" class="d-flex align-items-center p-2 w-100 m-0"><input class="form-check-input me-2" type="checkbox" name="mc1" id="mc1">
-      <span class="form-check-label w-100">Option 1</span></label>
-   </li>
-   <li class="list-group-item p-0"><label for="mc2" class="d-flex align-items-center p-2 w-100 m-0"><input class="form-check-input me-2" type="checkbox" name="mc2" id="mc2">
-      <span class="form-check-label w-100">Option 2</span></label>
-   </li>
-   <li class="list-group-item p-0"><label for="mc3" class="d-flex align-items-center p-2 w-100 m-0"><input class="form-check-input me-2" type="checkbox" name="mc3" id="mc3">
-      <span class="form-check-label w-100">Option 3</span></label>
-   </li>
-   <li class="list-group-item p-0"><label for="mc4" class="d-flex align-items-center p-2 w-100 m-0"><input class="form-check-input me-2" type="checkbox" name="mc4" id="mc4">
-      <span class="form-check-label w-100">Option 4</span></label>
-   </li>
-   <li class="list-group-item p-0"><label for="mc5" class="d-flex align-items-center p-2 w-100 m-0"><input class="form-check-input me-2" type="checkbox" name="mc5" id="mc5">
-      <span class="form-check-label w-100">Option 5</span></label>
-   </li>
-  </ul>`;
-      templateCL.id = "checkboxList";
-      document.body.appendChild(templateCL);
+      this._element = document.createElement('ul');
+      this._element.className = 'list-group';
 
-      var templateML = document.createElement('template');
-      templateML.innerHTML = `<ul class="list-group">
-    <li class="list-group-item d-flex align-items-center">
-      <span><span class="justify-content-start"><i class="bi bi-arrow-up px-2"></i><i class="bi bi-arrow-down"></i></span></span>
-      <div class="form-check"><label class="form-check-label"></label></div>
-   </li>
-   <li class="list-group-item d-flex align-items-center">
-      <span><span class="justify-content-start"><i class="bi bi-arrow-up px-2"></i><i class="bi bi-arrow-down"></i></span></span>
-      <div class="form-check"><label class="form-check-label"></label></div>
-   </li>
-   <li class="list-group-item d-flex align-items-center">
-      <span><span class="justify-content-start"><i class="bi bi-arrow-up px-2"></i><i class="bi bi-arrow-down"></i></span></span>
-      <div class="form-check"><label class="form-check-label"></label></div>
-   </li>
-   <li class="list-group-item d-flex align-items-center">
-      <span><span class="justify-content-start"><i class="bi bi-arrow-up px-2"></i><i class="bi bi-arrow-down"></i></span></span>
-      <div class="form-check"><label class="form-check-label"></label></div>
-   </li>
-   <li class="list-group-item d-flex align-items-center">
-      <span><span class="justify-content-start"><i class="bi bi-arrow-up px-2"></i><i class="bi bi-arrow-down"></i></span></span>
-      <div class="form-check"><label class="form-check-label"></label></div>
-   </li>
-  </ul>`;
-      templateML.id = "matchesList";
-      document.body.appendChild(templateML);
-
-
-      const template = document.getElementById(templateName);
-
-      this._element = template.content.cloneNode(true).firstChild;
+      // Preserve the existing component reference.
       this._element.container = this;
 
-      let length = 0;
+      switch (templateName) {
+        case 'radioList':
+          this._renderChoices(choices, 'radio');
+          break;
 
+        case 'checkboxList':
+          this._renderChoices(choices, 'checkbox');
+          break;
 
+        case 'matchesList':
+          this._renderMatches(choices);
+          break;
 
-      if (templateName === "matchesList") {
-        this.isMatches = true;
-        choices.forEach((choice, index) => {
-          const liEl = this._element.children[index];
-          const labelEl = liEl.querySelector("label");
-          labelEl.attributes["data-id"] = choice.id;
-          labelEl.textContent = choice.label || choice.choice || choice.match || '';
-
-          liEl
-            .querySelector("i.bi-arrow-up")
-            .addEventListener("click", (event) => {
-              const liEl = event.currentTarget.parentElement.parentElement.parentElement;  // current value
-
-              if (liEl.parentElement.firstChild === liEl) {
-
-                liEl.parentNode.appendChild(liEl);
-              } else {
-                liEl.parentNode.insertBefore(liEl, liEl.previousElementSibling);
-              }
-            });
-
-          liEl
-            .querySelector("i.bi-arrow-down")
-            .addEventListener("click", (event) => {
-              const liEl = event.currentTarget.closest("li");
-              const ulNode = liEl.parentNode;
-              if (liEl === ulNode.lastElementChild) {
-                ulNode.insertBefore(liEl, ulNode.firstElementChild);
-              } else {
-                ulNode.insertBefore(liEl.nextElementSibling, liEl);
-              }
-            });
-
-          length++;
-        });
-      } else {
-        choices.forEach((choice, index) => {
-          const liEl = this._element.children[index];
-          const input = liEl.querySelector("input");
-          input.value = choice.id;
-          input.name = `c${choices[0].id}`;
-          input.id = choice.id;
-          const clabel = liEl.querySelector("label");
-          clabel.htmlFor = choice.id;
-          if(choice.image) {
-            clabel.querySelector("span").innerHTML = `<img src="${choice.image}" class="img-fluid" alt="${choice.label}">`;
-          } else {
-            clabel.querySelector("span").textContent = choice.label || choice.choice || '';
-          }
-          
-
-          renderMathInElement(clabel.querySelector("span"), {
-            delimiters: [
-              { left: '$$', right: '$$', display: true },
-              { left: '$', right: '$', display: false }
-            ]
-          });
-
-          if (isPracticeMode) {
-            input.checked = choice.answer;
-          }
-          length++;
-        });
-      }
-
-      // Remove Unused Items
-      const total = this._element.children.length;
-      for (let index = length; index < total; index++) {
-        this._element.removeChild(this._element.children[length]);
+        default:
+          throw new Error(
+            `Unsupported ChoiceList template: ${templateName}`
+          );
       }
     }
 
+    /**
+     * Renders radio buttons or checkboxes.
+     *
+     * Each choice gets its own list item.
+     * No fixed template size is required.
+     *
+     * @private
+     * @param {Array<Object>} choices
+     * @param {'radio'|'checkbox'} type
+     */
+    _renderChoices(choices, type) {
+      // A unique group name prevents radio buttons from
+      // different ChoiceList instances interfering.
+      const groupName = `choices-${crypto.randomUUID()}`;
+
+      choices.forEach((choice, index) => {
+        const li = document.createElement('li');
+        li.className = 'list-group-item p-0';
+
+        const label = document.createElement('label');
+        label.className =
+          'd-flex align-items-center p-2 w-100 m-0';
+
+        const input = document.createElement('input');
+        input.className = 'form-check-input me-2';
+        input.type = type;
+
+        // IDs are expected to be generated by QuestionLoader.
+        const choiceId = String(choice.id ?? index);
+
+        input.value = choiceId;
+        input.name = groupName;
+
+        // Use a DOM-unique input ID while preserving the
+        // original choice ID in input.value.
+        input.id = `${groupName}-${index}`;
+        label.htmlFor = input.id;
+
+        const span = document.createElement('span');
+        span.className = 'form-check-label w-100';
+
+        this._renderChoiceContent(span, choice);
+
+        if (this.isPracticeMode) {
+          input.checked = Boolean(choice.answer);
+        }
+
+        label.appendChild(input);
+        label.appendChild(span);
+        li.appendChild(label);
+
+        this._element.appendChild(li);
+      });
+    }
+
+    /**
+     * Renders a choice's text or image.
+     *
+     * KaTeX expressions in text are rendered automatically.
+     *
+     * Text is assigned using textContent to avoid treating
+     * question content as executable HTML.
+     *
+     * @private
+     * @param {HTMLElement} container
+     * @param {Object} choice
+     */
+    _renderChoiceContent(container, choice) {
+      const text = choice.label ?? choice.choice ?? '';
+
+      if (choice.image) {
+        const image = document.createElement('img');
+
+        image.src = choice.image;
+        image.className = 'img-fluid';
+        image.alt = String(text);
+
+        container.appendChild(image);
+      } else {
+        container.textContent = String(text);
+      }
+
+      renderMathInElement(container, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$', right: '$', display: false }
+        ],
+        throwOnError: false
+      });
+    }
+
+    /**
+     * Renders reorderable matching choices.
+     *
+     * The up and down controls move the corresponding
+     * list item and wrap around at either end.
+     *
+     * @private
+     * @param {Array<Object>} choices
+     */
+    _renderMatches(choices) {
+      choices.forEach(choice => {
+        const li = document.createElement('li');
+
+        li.className =
+          'list-group-item d-flex align-items-center';
+
+        const controls = document.createElement('span');
+        controls.className = 'justify-content-start';
+
+        const upButton = this._createMoveButton(
+          'bi-arrow-up',
+          'Move up'
+        );
+
+        const downButton = this._createMoveButton(
+          'bi-arrow-down',
+          'Move down'
+        );
+
+        controls.appendChild(upButton);
+        controls.appendChild(downButton);
+
+        const formCheck = document.createElement('div');
+        formCheck.className = 'form-check';
+
+        const label = document.createElement('label');
+        label.className = 'form-check-label';
+
+        // Preserve the runtime-generated choice ID.
+        label.dataset.id = String(choice.id ?? '');
+
+        this._renderChoiceContent(label, {
+          ...choice,
+          label: choice.label ?? choice.choice ??
+            choice.match ?? ''
+        });
+
+        formCheck.appendChild(label);
+
+        li.appendChild(controls);
+        li.appendChild(formCheck);
+
+        upButton.addEventListener('click', () => {
+          this._moveUp(li);
+        });
+
+        downButton.addEventListener('click', () => {
+          this._moveDown(li);
+        });
+
+        this._element.appendChild(li);
+      });
+    }
+
+    /**
+     * Creates a keyboard-accessible reorder control.
+     *
+     * @private
+     * @param {string} iconClass
+     * @param {string} title
+     * @returns {HTMLButtonElement}
+     */
+    _createMoveButton(iconClass, title) {
+      const button = document.createElement('button');
+
+      button.type = 'button';
+      button.className =
+        'btn btn-link btn-sm p-1 text-body';
+
+      button.title = title;
+      button.setAttribute('aria-label', title);
+
+      const icon = document.createElement('i');
+      icon.className = `bi ${iconClass}`;
+
+      button.appendChild(icon);
+
+      return button;
+    }
+
+    /**
+     * Moves an item up one position.
+     * The first item wraps to the bottom.
+     *
+     * @private
+     * @param {HTMLLIElement} li
+     */
+    _moveUp(li) {
+      const parent = li.parentElement;
+
+      if (li === parent.firstElementChild) {
+        parent.appendChild(li);
+      } else {
+        parent.insertBefore(li, li.previousElementSibling);
+      }
+    }
+
+    /**
+     * Moves an item down one position.
+     * The last item wraps to the top.
+     *
+     * @private
+     * @param {HTMLLIElement} li
+     */
+    _moveDown(li) {
+      const parent = li.parentElement;
+
+      if (li === parent.lastElementChild) {
+        parent.insertBefore(li, parent.firstElementChild);
+      } else {
+        parent.insertBefore(li.nextElementSibling, li);
+      }
+    }
+
+    /**
+     * Returns the user's selected answer IDs.
+     *
+     * For radio and checkbox questions, returns the IDs
+     * of checked inputs.
+     *
+     * For matching questions, returns all choice IDs
+     * in their current visual order.
+     *
+     * @returns {string[]}
+     */
     get answer() {
-      // this.reset();
-
-      const answers = [];
       if (this.isMatches) {
-        this._element
-          .querySelectorAll("label")
-          .forEach((element) => answers.push(element.attributes["data-id"]));
-      } else {
-        const selectedCheckBoxes = this._element.querySelectorAll("input");
-        selectedCheckBoxes.forEach((input) => {
-          if (input.checked) {
-            answers.push(input.value);
-          }
-        });
+        return Array.from(
+          this._element.querySelectorAll('li label'),
+          label => label.dataset.id
+        );
       }
 
-      return answers;
+      return Array.from(
+        this._element.querySelectorAll('input:checked'),
+        input => input.value
+      );
     }
 
+    /**
+     * Returns the root DOM element.
+     *
+     * @returns {HTMLUListElement}
+     */
     get element() {
       return this._element;
     }
 
+    /**
+     * Clears verification styling.
+     *
+     * Does not change the selected answers
+     * or the current matching order.
+     */
     reset() {
-      this._element.querySelectorAll("li").forEach((liEl) => {
-        liEl.classList.remove("bg-success");
-        liEl.classList.remove("bg-danger");
+      this._element.querySelectorAll('li').forEach(li => {
+        li.classList.remove(
+          'bg-success',
+          'bg-danger',
+          'text-white',
+          'text-black'
+        );
       });
     }
 
-   verify(success) {
-    if (success) {
-      if (this.isMatches) {
-        this._element.querySelectorAll("li").forEach((liEl) => {
-          liEl.classList.add("bg-success", "text-white");
-          liEl.classList.remove("bg-danger", "text-black");
-        });
-      } else {
-        this._element.querySelectorAll("li").forEach((liEl) => {
-          const input = liEl.querySelector("input");
-          if (input.checked) {
-            liEl.classList.add("bg-success", "text-white");
-            liEl.classList.remove("bg-danger", "text-black");
-          } else {
-            liEl.classList.remove("bg-success", "bg-danger", "text-white");
-            liEl.classList.add("text-black");
-          }
-        });
-      }
-    } else {
-      if (this.isMatches) {
-        this._element.querySelectorAll("li").forEach((liEl) => {
-          liEl.classList.add("bg-danger", "text-white");
-          liEl.classList.remove("bg-success", "text-black");
-        });
-      } else {
-        this._element.querySelectorAll("li").forEach((liEl) => {
-          const input = liEl.querySelector("input");
-          if (input.checked) {
-            liEl.classList.add("bg-danger", "text-white");
-            liEl.classList.remove("bg-success", "text-black");
-          } else {
-            liEl.classList.remove("bg-success", "bg-danger", "text-white");
-            liEl.classList.add("text-black");
-          }
-        });
-      }
+    /**
+     * Applies visual verification feedback.
+     *
+     * For matching questions, highlights every item.
+     *
+     * For radio and checkbox questions, highlights only
+     * the selected choices.
+     *
+     * @param {boolean} success
+     *   Whether the submitted answer is correct.
+     */
+    verify(success) {
+      const successClass = success
+        ? 'bg-success'
+        : 'bg-danger';
+
+      const failureClass = success
+        ? 'bg-danger'
+        : 'bg-success';
+
+      this._element.querySelectorAll('li').forEach(li => {
+        const shouldHighlight = this.isMatches ||
+          Boolean(li.querySelector('input:checked'));
+
+        li.classList.remove(
+          successClass,
+          failureClass,
+          'text-white',
+          'text-black'
+        );
+
+        if (shouldHighlight) {
+          li.classList.add(successClass, 'text-white');
+        } else {
+          li.classList.add('text-black');
+        }
+      });
     }
-  }
   }
 
   /**
