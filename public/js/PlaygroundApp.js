@@ -5,9 +5,12 @@ export default class PlaygroundApp {
 
         this.STORAGE_KEY = 'playgroundOptions';
 
+        this.baseUrl = new URL('./', window.location.href).href;
+
         this.defaultOptions = {
             mode: 'PRACTICE',
             locale: 'en',
+            baseUrl: this.baseUrl,
             maxQ: null,
             complexity: null,
             timer: null
@@ -214,7 +217,7 @@ export default class PlaygroundApp {
      */
     async _loadQuestionPaths() {
         try {
-            const response = await fetch('./data/q-map.json');
+            const response = await fetch(this.baseUrl + '/data/q-map.json');
 
             if (!response.ok) {
                 throw new Error(
