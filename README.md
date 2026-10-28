@@ -326,6 +326,21 @@ maker.destroy();
 ```
 
 This stops the quiz timer and removes registered keyboard and navigation listeners.
+## Loading Extrnal Questions
+
+**Linux / macOS**
+```bash
+export QUESTIONS_FOLDER="<<DIR>>"
+export PUBLIC_FOLDER="<<DIR>>" 
+npm run watch:questions
+```
+
+**Windows (Powershell)**
+```bash
+$env QUESTIONS_FOLDER=<<DIR>>
+$env PUBLIC_FOLDER=<<DIR>>
+npm run watch:questions
+```
 
 ## License
 
