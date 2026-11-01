@@ -92,7 +92,7 @@ export default class QuestionLoader {
     const questions =
       this._questions !== null
         ? this._questions
-        : this.#normalizedRepoUrls().length > 0
+        : this._normalizeRepoUrls().length > 0
           ? await this.getQuestions()
           : [];
     const allQuestions = this._includeUserQuestions
@@ -123,7 +123,7 @@ export default class QuestionLoader {
    * Normalize `repoUrl` (a single path string or an array of path strings)
    * into a clean array of trimmed, non-empty paths.
    */
-  #normalizedRepoUrls() {
+  _normalizeRepoUrls() {
     const raw = Array.isArray(this._repoUrl) ? this._repoUrl : [this._repoUrl];
     return raw
       .filter((path) => typeof path === "string" && path.trim().length > 0)
@@ -133,11 +133,11 @@ export default class QuestionLoader {
   async getQuestions() {
     const baseUrl = this._baseUrl.replace(/\/+$/, "");
     const dataRootUrl = `${baseUrl}/data`;
-    const repoPaths = this.#normalizedRepoUrls();
+    const repoPaths = this._normalizeRepoUrls();
 
     const results = await Promise.all(
       repoPaths.map((repoPath) =>
-        this.#getQuestionsForPath(repoPath, dataRootUrl)
+        this._getQuestionsForPath(repoPath, dataRootUrl)
       )
     );
 
@@ -149,7 +149,7 @@ export default class QuestionLoader {
     });
   }
 
-  async #getQuestionsForPath(repoPath, dataRootUrl) {
+  async _getQuestionsForPath(repoPath, dataRootUrl) {
     const cacheKey = `${dataRootUrl}\0${repoPath}\0${this._languageCode || ""}`;
 
     if (remoteQuestionsCache.has(cacheKey)) {
