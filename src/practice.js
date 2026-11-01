@@ -11,6 +11,11 @@ import {
 
 export { loadUserQuestions, saveUserQuestion, deleteUserQuestion };
 
+// `repoUrl` can be a single path string or an array of paths; an empty
+// array is truthy in JS, so callers must use this instead of `Boolean(value)`.
+const hasRepoUrl = (value) =>
+  Array.isArray(value) ? value.length > 0 : Boolean(value);
+
 export default class PracticeMaker {
   constructor(_contentRoot, _options) {
     this._options = this._normalizeOptions(_options);
@@ -200,7 +205,7 @@ export default class PracticeMaker {
 
     this._resetUI();
     this.ready =
-      this._options.repoUrl ||
+      hasRepoUrl(this._options.repoUrl) ||
       Array.isArray(this._options.questions) ||
       this._options.includeUserQuestions
       ? this.loadQuestions()
@@ -224,8 +229,8 @@ export default class PracticeMaker {
       shuffleQuestions: merged.shuffleQuestions ?? merged.shuffle ?? true,
       includeUserQuestions: options.includeUserQuestions ??
         (modeChanged
-          ? Boolean(repoUrl || mode === 'EDIT')
-          : merged.includeUserQuestions ?? Boolean(repoUrl || mode === 'EDIT')),
+          ? Boolean(hasRepoUrl(repoUrl) || mode === 'EDIT')
+          : merged.includeUserQuestions ?? Boolean(hasRepoUrl(repoUrl) || mode === 'EDIT')),
       source: options.source ??
         (modeChanged
           ? (mode === 'EDIT' ? 'user' : 'all')

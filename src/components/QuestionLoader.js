@@ -14,6 +14,8 @@ const remoteQuestionsCache = new Map();
  * Sample Usage
  * const qL = new QuestionLoader({ baseUrl: "https://www.example.com" });
  * qL.repoUrl = "maths/algebra";
+ * // Multiple repos can be loaded and merged together:
+ * qL.repoUrl = ["maths/algebra", "science/physics"];
  * qL.languageCode = "ta";
  * qL.maxQuestions = 5;
  * qL.shuffleQuestions = true;
@@ -90,7 +92,7 @@ export default class QuestionLoader {
     const questions =
       this._questions !== null
         ? this._questions
-        : this._repoUrl
+        : this.#normalizedRepoUrls().length > 0
           ? await this.getQuestions()
           : [];
     const allQuestions = this._includeUserQuestions
@@ -117,10 +119,37 @@ export default class QuestionLoader {
     return this.#filterQuestions(await this.loadSourceQuestions(), options);
   }
 
+  /**
+   * Normalize `repoUrl` (a single path string or an array of path strings)
+   * into a clean array of trimmed, non-empty paths.
+   */
+  #normalizedRepoUrls() {
+    const raw = Array.isArray(this._repoUrl) ? this._repoUrl : [this._repoUrl];
+    return raw
+      .filter((path) => typeof path === "string" && path.trim().length > 0)
+      .map((path) => path.replace(/^\/+|\/+$/g, ""));
+  }
+
   async getQuestions() {
     const baseUrl = this._baseUrl.replace(/\/+$/, "");
-    const repoPath = this._repoUrl.replace(/^\/+|\/+$/g, "");
     const dataRootUrl = `${baseUrl}/data`;
+    const repoPaths = this.#normalizedRepoUrls();
+
+    const results = await Promise.all(
+      repoPaths.map((repoPath) =>
+        this.#getQuestionsForPath(repoPath, dataRootUrl)
+      )
+    );
+
+    const seenIds = new Set();
+    return results.flat().filter((question) => {
+      if (seenIds.has(question.id)) return false;
+      seenIds.add(question.id);
+      return true;
+    });
+  }
+
+  async #getQuestionsForPath(repoPath, dataRootUrl) {
     const cacheKey = `${dataRootUrl}\0${repoPath}\0${this._languageCode || ""}`;
 
     if (remoteQuestionsCache.has(cacheKey)) {

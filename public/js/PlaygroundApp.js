@@ -16,7 +16,18 @@ export default class PlaygroundApp {
             timer: null
         };
 
+        this._qMap = null;
+
         this.options = this._loadOptions();
+    }
+
+    /**
+     * Normalize a `repoUrl` option value (string, array, or nullish)
+     * into a clean array of paths.
+     */
+    _toPathArray(value) {
+        if (Array.isArray(value)) return value.filter(Boolean);
+        return value ? [value] : [];
     }
 
     async init() {
@@ -72,13 +83,19 @@ export default class PlaygroundApp {
         try {
             const saved = sessionStorage.getItem(this.STORAGE_KEY);
 
-            return {
+            const options = {
                 ...this.defaultOptions,
                 ...(saved ? JSON.parse(saved) : {})
             };
+
+            // Normalize repoUrl to an array (back-compat with sessions
+            // saved before multi-path support was added).
+            options.repoUrl = this._toPathArray(options.repoUrl);
+
+            return options;
         } catch (error) {
             console.warn('Unable to restore playground options:', error);
-            return { ...this.defaultOptions };
+            return { ...this.defaultOptions, repoUrl: [] };
         }
     }
 
@@ -112,8 +129,7 @@ export default class PlaygroundApp {
 
         document.getElementById('repoUrlInput').value = o.baseUrl ?? '';
 
-        document.getElementById('qPathInput').value =
-            o.repoUrl?.replace(/^\/?data\//, '') ?? '';
+        this._renderPathPills();
     }
 
     /**
@@ -123,6 +139,7 @@ export default class PlaygroundApp {
         const modeSelect = document.getElementById('modeSelect');
         const langSelect = document.getElementById('langSelect');
         const qPathInput = document.getElementById('qPathInput');
+        const qPathAddBtn = document.getElementById('qPathAddBtn');
         const applyBtn = document.getElementById('optionsApplyBtn');
 
         modeSelect.addEventListener('change', () => {
@@ -137,33 +154,23 @@ export default class PlaygroundApp {
             });
         });
 
-        // Apply question path when selected or edited.
-        const updatePath = () => {
-            const path = qPathInput.value.trim();
-
-            if (!path) return;
-
-            const normalizedPath = path
-                .replace(/^\/+/, '')
-                .replace(/^data\//, '')
-                .replace(/\/+$/, '');
-
-            void this._setOptions({
-                repoUrl: `${normalizedPath}`
-            });
-        };
-
         qPathInput.addEventListener('focus', () => {
             qPathInput.select();
         });
 
-        qPathInput.addEventListener('change', updatePath);
-        qPathInput.addEventListener('blur', updatePath);
+        // Clear any stale invalid-path styling as soon as the user edits.
+        qPathInput.addEventListener('input', () => {
+            qPathInput.classList.remove('is-invalid');
+        });
+
+        qPathAddBtn.addEventListener('click', () => {
+            void this._addPath(qPathInput.value);
+        });
 
         qPathInput.addEventListener('keydown', event => {
             if (event.key === 'Enter') {
                 event.preventDefault();
-                qPathInput.blur();
+                void this._addPath(qPathInput.value);
             }
         });
 
@@ -173,13 +180,22 @@ export default class PlaygroundApp {
                 document.getElementById('complexityCmb').value;
             const timer = document.getElementById('timerInput').value;
             const baseUrl = document.getElementById('repoUrlInput').value;
+            const baseUrlChanged = baseUrl !== this.options.baseUrl;
 
             await this._setOptions({
                 baseUrl: baseUrl,
+                // Paths selected under the previous base URL may not exist
+                // under the new one, so drop them and let _loadQuestionPaths
+                // pick a fresh default from the new source below.
+                ...(baseUrlChanged ? { repoUrl: [] } : {}),
                 maxQ: maxQ ? Number(maxQ) : null,
                 complexity: complexity || null,
                 timer: timer ? Number(timer) : null
             });
+
+            if (baseUrlChanged) {
+                await this._loadQuestionPaths();
+            }
 
             const modal = bootstrap.Modal.getInstance(
                 document.getElementById('optionsModal')
@@ -217,11 +233,112 @@ export default class PlaygroundApp {
     }
 
     /**
+     * Check whether a path exists in the loaded question map,
+     * walking segment by segment (same pattern QuestionLoader uses
+     * server-side to resolve a repoUrl against q-map.json).
+     */
+    _isValidPath(path) {
+        if (!this._qMap || !path) return false;
+
+        let node = this._qMap;
+
+        for (const segment of path.split('/').filter(Boolean)) {
+            if (
+                !node ||
+                typeof node !== 'object' ||
+                !Object.prototype.hasOwnProperty.call(node, segment)
+            ) {
+                return false;
+            }
+
+            node = node[segment];
+        }
+
+        return true;
+    }
+
+    /**
+     * Validate and commit a path typed/selected in the input as a new pill.
+     */
+    async _addPath(rawPath) {
+        const qPathInput = document.getElementById('qPathInput');
+
+        const path = rawPath
+            .trim()
+            .replace(/^\/+/, '')
+            .replace(/^data\//, '')
+            .replace(/\/+$/, '');
+
+        if (!path) return;
+
+        if (!this._isValidPath(path)) {
+            qPathInput.classList.add('is-invalid');
+            return;
+        }
+
+        qPathInput.classList.remove('is-invalid');
+
+        const current = this._toPathArray(this.options.repoUrl);
+
+        if (current.includes(path)) {
+            qPathInput.value = '';
+            return;
+        }
+
+        await this._setOptions({ repoUrl: [...current, path] });
+        qPathInput.value = '';
+        this._renderPathPills();
+    }
+
+    /**
+     * Remove a path pill and reload from the remaining paths.
+     */
+    async _removePath(path) {
+        const remaining = this._toPathArray(this.options.repoUrl)
+            .filter(existing => existing !== path);
+
+        await this._setOptions({ repoUrl: remaining });
+        this._renderPathPills();
+    }
+
+    /**
+     * Render the selected question paths as removable pills.
+     */
+    _renderPathPills() {
+        const container = document.getElementById('qPathPills');
+
+        if (!container) return;
+
+        container.replaceChildren();
+
+        this._toPathArray(this.options.repoUrl).forEach(path => {
+            const pill = document.createElement('span');
+            pill.className =
+                'badge rounded-pill text-bg-secondary d-inline-flex align-items-center gap-1';
+            pill.textContent = path;
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'btn-close btn-close-white';
+            removeBtn.style.fontSize = '0.55rem';
+            removeBtn.setAttribute('aria-label', `Remove ${path}`);
+            removeBtn.addEventListener('click', () => {
+                void this._removePath(path);
+            });
+
+            pill.appendChild(removeBtn);
+            container.appendChild(pill);
+        });
+    }
+
+    /**
      * Load available question paths into datalist.
      */
     async _loadQuestionPaths() {
         try {
-            const response = await fetch(this.baseUrl + '/data/q-map.json');
+            const baseUrl = (this.options.baseUrl || this.baseUrl)
+                .replace(/\/+$/, '');
+            const response = await fetch(baseUrl + '/data/q-map.json');
 
             if (!response.ok) {
                 throw new Error(
@@ -230,6 +347,8 @@ export default class PlaygroundApp {
             }
 
             const data = await response.json();
+            this._qMap = data;
+
             const paths = this._extractPaths(data);
 
             const datalist = document.getElementById('qPathList');
@@ -242,15 +361,11 @@ export default class PlaygroundApp {
                 datalist.appendChild(option);
             });
 
-            const qPathInput = document.getElementById('qPathInput');
-            if(qPathInput.value.trim().length == 0) {
-                qPathInput.value = paths[0];
-                // Trigger the existing change event listener
-                qPathInput.dispatchEvent(new Event('change', { bubbles: true }));
+            // Preserve the default single-repo auto-load for sessions
+            // that don't have any paths selected yet.
+            if (this._toPathArray(this.options.repoUrl).length === 0 && paths[0]) {
+                await this._addPath(paths[0]);
             }
-
- 
-
         } catch (error) {
             console.error('Error loading question map:', error);
         }
