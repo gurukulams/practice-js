@@ -1,4 +1,3 @@
-
 import QuestionPane from "./components/QuestionPane";
 import AuthorPane from "./components/AuthorPane";
 import { t } from "./i18n";
@@ -21,8 +20,11 @@ export default class PracticeMaker {
     this._options = this._normalizeOptions(_options);
     this.questionLoader = new QuestionLoader(this._loaderOptions());
 
-    const L = (key) => t(this._options.locale, key);
-
+    // Static markup. Translatable text is NOT interpolated here: elements
+    // carry a data-i18n="<key>" attribute and _applyLocale() fills them in
+    // through the DOM API (textContent), so no string interpolation is used.
+    // Left-side tags container (#headerTagsContainer) is populated
+    // per-question in setQuestion().
     _contentRoot.innerHTML = `
     <div id="content" class="d-none" data-type="question">
     <header
@@ -30,7 +32,6 @@ export default class PracticeMaker {
     >
        <div class="d-flex align-items-center w-100">
 
-          <!-- Left-side Tags Container: populated per-question in setQuestion() -->
           <div id="headerTagsContainer" class="d-flex align-items-center gap-1 flex-wrap me-auto"></div>
 
           <ul
@@ -46,8 +47,7 @@ export default class PracticeMaker {
 
           <li class="nav-item">
           <span id="editModeBadge" class="btn badge bg-warning text-dark d-none"
-             >${L('editModeBadge')}</span
-          >
+             data-i18n="editModeBadge"></span>
           </li>
 
           <li class="nav-item">
@@ -123,8 +123,8 @@ export default class PracticeMaker {
  <div id="notfound" class="row d-none">
     <div class="d-flex align-items-center justify-content-center">
        <div class="text-center">
-          <p class="fs-3">${L('noQuestions')}</p>
-          <a href="/" class="btn btn-primary">${L('goBack')}</a>
+          <p class="fs-3" data-i18n="noQuestions"></p>
+          <a href="/" class="btn btn-primary" data-i18n="goBack"></a>
        </div>
     </div>
  </div>
@@ -155,14 +155,17 @@ export default class PracticeMaker {
        id="checkBtn"
        title="Check Question"
     >
-       <i class="bi bi-check"></i> ${L('verifyBtn')}
+       <i class="bi bi-check"></i> <span data-i18n="verifyBtn"></span>
     </button>
-    <button id="quizSubmitBtn" type="button" class="btn btn-danger d-none">
-       ${L('submitQuiz')}
-    </button>
+    <button id="quizSubmitBtn" type="button" class="btn btn-danger d-none"
+       data-i18n="submitQuiz"></button>
 
  </div>
             `;
+
+    // Fill in all translatable text via the DOM API
+    this._root = _contentRoot;
+    this._applyLocale();
 
     this.questionPane = new QuestionPane((arr) => this.shuffle(arr));
     this.questionPane.readOnly = true;
@@ -241,7 +244,7 @@ export default class PracticeMaker {
   _loaderOptions() {
     const o = this._options;
     return {
-      baseUrl: o.baseUrl,            // <-- add this
+      baseUrl: o.baseUrl,
       repoUrl: o.repoUrl,
       languageCode: o.languageCode ?? o.locale,
       questions: o.questions,
@@ -280,41 +283,30 @@ export default class PracticeMaker {
   async setOptions(changes = {}) {
     this._options = this._normalizeOptions(changes);
     this._stopTimer();
-    
+
     // 1. Re-initialize QuestionLoader with the new locale/languageCode
     this.questionLoader = new QuestionLoader(this._loaderOptions());
-    
-    // 2. Re-render dynamic UI text labels that use locale (t())
-    this._updateLocalizedUI();
+
+    // 2. Re-apply translated UI text (elements marked with data-i18n)
+    this._applyLocale();
 
     this._resetUI();
     return this.loadQuestions();
   }
 
-  // Helper to refresh static UI text when locale changes
-  _updateLocalizedUI() {
-    const L = (key) => t(this._options.locale, key);
+  // Fills every element marked with data-i18n="<key>" using the current
+  // locale. Scoped to this instance's root so other page content is untouched.
+  _applyLocale() {
+    const locale = this._options.locale;
 
-    // Update Edit Mode Badge
-    const editBadge = document.getElementById('editModeBadge');
-    if (editBadge) editBadge.textContent = L('editModeBadge');
+    this._root.querySelectorAll('[data-i18n]').forEach((el) => {
+      el.textContent = t(locale, el.dataset.i18n);
+    });
 
-    // Update Not Found Screen
-    const notFoundText = document.querySelector('#notfound p.fs-3');
-    if (notFoundText) notFoundText.textContent = L('noQuestions');
-    
-    const notFoundBtn = document.querySelector('#notfound a.btn-primary');
-    if (notFoundBtn) notFoundBtn.textContent = L('goBack');
-
-    // Update Verify / Check Button
-    const checkBtnText = document.getElementById('checkBtn');
-    if (checkBtnText) {
-      checkBtnText.innerHTML = `<i class="bi bi-check"></i> ${L('verifyBtn')}`;
-    }
-
-    // Update Submit Quiz Button
-    const submitBtn = document.getElementById('quizSubmitBtn');
-    if (submitBtn) submitBtn.textContent = L('submitQuiz');
+    // Optional: translated attributes such as tooltips
+    this._root.querySelectorAll('[data-i18n-title]').forEach((el) => {
+      el.title = t(locale, el.dataset.i18nTitle);
+    });
   }
 
   _resetUI() {
@@ -437,11 +429,9 @@ export default class PracticeMaker {
 
     if (!hasQuestions) {
       if (mode !== 'EDIT') {
+        // The label comes from data-i18n="goBack"; only the target is set here.
         const link = document.querySelector('#notfound a.btn-primary');
-        if (link) {
-          link.href = document.referrer || '/';
-          link.textContent = 'Go Back';
-        }
+        if (link) link.href = document.referrer || '/';
       }
       return;
     }
@@ -818,19 +808,20 @@ export default class PracticeMaker {
     };
 
     const restoreFab = () => {
+      // Rebuilt with data-i18n markers; _applyLocale() fills in the text.
       fabPane.innerHTML = `
         <button type="button"
           class="btn btn-primary d-none"
           id="checkBtn">
-          <i class="bi bi-check"></i>
-          ${t(this._options.locale, 'verifyBtn')}
+          <i class="bi bi-check"></i> <span data-i18n="verifyBtn"></span>
         </button>
         <button type="button"
           class="btn btn-danger d-none"
-          id="quizSubmitBtn">
-          ${t(this._options.locale, 'submitQuiz')}
-        </button>
+          id="quizSubmitBtn"
+          data-i18n="submitQuiz"></button>
       `;
+
+      this._applyLocale();
 
       this.checkBtn = document.getElementById('checkBtn');
 
