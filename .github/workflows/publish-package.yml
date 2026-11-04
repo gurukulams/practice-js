@@ -59,7 +59,9 @@ jobs:
 
     - name: Install dependencies
       if: steps.version_check.outputs.already_published == 'false'
-      run: npm ci
+      run: |
+        rm -rf node_modules package-lock.json
+        npm ci
 
     - name: Build
       if: steps.version_check.outputs.already_published == 'false'
