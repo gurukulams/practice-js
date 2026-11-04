@@ -9,24 +9,6 @@ import {
 
 export { loadUserQuestions, saveUserQuestion, deleteUserQuestion };
 
-// Hardcoded English labels (i18n dependency removed for now).
-// The `locale` option is still accepted and passed to the loader, but it
-// no longer affects any UI text.
-const LABELS = {
-  editModeBadge: "Edit Mode",
-  noQuestions: "No questions found",
-  goBack: "Go Back",
-  verifyBtn: "Verify",
-  submitQuiz: "Submit Quiz",
-  pleaseAnswer: "Please answer the question first",
-  correctAnswer: "Correct",
-  wrongAnswer: "Wrong",
-  notAttempted: "Not attempted",
-  quizComplete: "Quiz complete! Score:",
-  timeUsed: "Time used:",
-  backToResults: "Back to results",
-};
-
 // `repoUrl` can be a single path string or an array of paths; an empty
 // array is truthy in JS, so callers must use this instead of `Boolean(value)`.
 const hasRepoUrl = (value) =>
@@ -37,7 +19,10 @@ export default class PracticeMaker {
     this._options = this._normalizeOptions(_options);
     this.questionLoader = new QuestionLoader(this._loaderOptions());
 
-    // Static markup with hardcoded English labels.
+    // All UI text lives directly in this markup (English, no i18n).
+    // Labels that JS needs at runtime (result states, messages) are stored
+    // as data-* attributes on the hidden #practiceLabels element and read
+    // back through this._labels.
     // Left-side tags container (#headerTagsContainer) is populated
     // per-question in setQuestion().
     _contentRoot.innerHTML = `
@@ -61,7 +46,7 @@ export default class PracticeMaker {
           </li>
 
           <li class="nav-item">
-          <span id="editModeBadge" class="btn badge bg-warning text-dark d-none">${LABELS.editModeBadge}</span>
+          <span id="editModeBadge" class="btn badge bg-warning text-dark d-none">Edit Mode</span>
           </li>
 
           <li class="nav-item">
@@ -137,8 +122,8 @@ export default class PracticeMaker {
  <div id="notfound" class="row d-none">
     <div class="d-flex align-items-center justify-content-center">
        <div class="text-center">
-          <p class="fs-3">${LABELS.noQuestions}</p>
-          <a href="/" class="btn btn-primary">${LABELS.goBack}</a>
+          <p class="fs-3">No questions found</p>
+          <a href="/" class="btn btn-primary">Go Back</a>
        </div>
     </div>
  </div>
@@ -169,14 +154,27 @@ export default class PracticeMaker {
        id="checkBtn"
        title="Check Question"
     >
-       <i class="bi bi-check"></i> <span>${LABELS.verifyBtn}</span>
+       <i class="bi bi-check"></i> <span>Verify</span>
     </button>
-    <button id="quizSubmitBtn" type="button" class="btn btn-danger d-none">${LABELS.submitQuiz}</button>
+    <button id="quizSubmitBtn" type="button" class="btn btn-danger d-none">Submit Quiz</button>
 
  </div>
+
+ <div
+    id="practiceLabels"
+    hidden
+    data-correct="Correct"
+    data-wrong="Wrong"
+    data-not-attempted="Not attempted"
+    data-please-answer="Please answer the question first"
+    data-quiz-complete="Quiz complete! Score:"
+    data-time-used="Time used:"
+    data-back-to-results="Back to results"
+ ></div>
             `;
 
     this._root = _contentRoot;
+    this._labels = _contentRoot.querySelector('#practiceLabels').dataset;
     this._applyLocale();
 
     this.questionPane = new QuestionPane((arr) => this.shuffle(arr));
@@ -299,14 +297,14 @@ export default class PracticeMaker {
     // 1. Re-initialize QuestionLoader with the new locale/languageCode
     this.questionLoader = new QuestionLoader(this._loaderOptions());
 
-    // 2. Locale hook (dummy for now; labels are hardcoded in English)
+    // 2. Locale hook (dummy for now; UI text is written directly in the DOM)
     this._applyLocale();
 
     this._resetUI();
     return this.loadQuestions();
   }
 
-  // Dummy: UI text is hardcoded in English, so locale changes are a no-op.
+  // Dummy: locale changes don't affect UI text for now.
   // Kept so a real translation layer can be plugged back in later.
   _applyLocale() {}
 
@@ -644,7 +642,7 @@ export default class PracticeMaker {
     const answer = this.questionPane.getAnswer();
 
     if (!answer && !silentMode) {
-      this._options.error?.(LABELS.pleaseAnswer);
+      this._options.error?.(this._labels.pleaseAnswer);
       return false;
     }
 
@@ -695,8 +693,8 @@ export default class PracticeMaker {
     if (!button) return;
 
     button.firstElementChild.textContent = correct
-      ? LABELS.correctAnswer
-      : LABELS.wrongAnswer;
+      ? this._labels.correct
+      : this._labels.wrong;
 
     button.classList.remove('btn-success', 'btn-danger', 'd-none');
     button.classList.add(correct ? 'btn-success' : 'btn-danger');
@@ -809,11 +807,11 @@ export default class PracticeMaker {
         <button type="button"
           class="btn btn-primary d-none"
           id="checkBtn">
-          <i class="bi bi-check"></i> <span>${LABELS.verifyBtn}</span>
+          <i class="bi bi-check"></i> <span>Verify</span>
         </button>
         <button type="button"
           class="btn btn-danger d-none"
-          id="quizSubmitBtn">${LABELS.submitQuiz}</button>
+          id="quizSubmitBtn">Submit Quiz</button>
       `;
 
       this.checkBtn = document.getElementById('checkBtn');
@@ -928,7 +926,8 @@ export default class PracticeMaker {
 
     const heading = document.createElement('h4');
     heading.className = 'text-center mb-3';
-    heading.textContent = `${LABELS.quizComplete} ${correct} / ${total}`;
+    heading.textContent =
+      `${this._labels.quizComplete} ${correct} / ${total}`;
 
     resultsDiv.appendChild(heading);
 
@@ -938,7 +937,8 @@ export default class PracticeMaker {
 
       const timeEl = document.createElement('p');
       timeEl.className = 'text-center text-muted small mb-2';
-      timeEl.textContent = `${LABELS.timeUsed} ${this._formatTime(used)}`;
+      timeEl.textContent =
+        `${this._labels.timeUsed} ${this._formatTime(used)}`;
 
       resultsDiv.appendChild(timeEl);
     }
@@ -992,7 +992,7 @@ export default class PracticeMaker {
       backBtn.className =
         'btn btn-outline-secondary btn-sm mb-2';
 
-      backBtn.textContent = LABELS.backToResults;
+      backBtn.textContent = this._labels.backToResults;
 
       backBtn.addEventListener('click', () => {
         content.classList.add('d-none');
@@ -1023,8 +1023,8 @@ export default class PracticeMaker {
     const result = this.results[index];
 
     const label = result.correct
-      ? LABELS.correctAnswer
-      : result.answered ? LABELS.wrongAnswer : LABELS.notAttempted;
+      ? this._labels.correct
+      : result.answered ? this._labels.wrong : this._labels.notAttempted;
 
     const color = result.correct
       ? 'btn-success'
