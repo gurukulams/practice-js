@@ -1,6 +1,5 @@
 import QuestionPane from "./components/QuestionPane";
 import AuthorPane from "./components/AuthorPane";
-import { t } from "./i18n";
 import QuestionLoader from "./components/QuestionLoader";
 import {
   loadUserQuestions,
@@ -9,6 +8,24 @@ import {
 } from "./storage";
 
 export { loadUserQuestions, saveUserQuestion, deleteUserQuestion };
+
+// Hardcoded English labels (i18n dependency removed for now).
+// The `locale` option is still accepted and passed to the loader, but it
+// no longer affects any UI text.
+const LABELS = {
+  editModeBadge: "Edit Mode",
+  noQuestions: "No questions found",
+  goBack: "Go Back",
+  verifyBtn: "Verify",
+  submitQuiz: "Submit Quiz",
+  pleaseAnswer: "Please answer the question first",
+  correctAnswer: "Correct",
+  wrongAnswer: "Wrong",
+  notAttempted: "Not attempted",
+  quizComplete: "Quiz complete! Score:",
+  timeUsed: "Time used:",
+  backToResults: "Back to results",
+};
 
 // `repoUrl` can be a single path string or an array of paths; an empty
 // array is truthy in JS, so callers must use this instead of `Boolean(value)`.
@@ -20,9 +37,7 @@ export default class PracticeMaker {
     this._options = this._normalizeOptions(_options);
     this.questionLoader = new QuestionLoader(this._loaderOptions());
 
-    // Static markup. Translatable text is NOT interpolated here: elements
-    // carry a data-i18n="<key>" attribute and _applyLocale() fills them in
-    // through the DOM API (textContent), so no string interpolation is used.
+    // Static markup with hardcoded English labels.
     // Left-side tags container (#headerTagsContainer) is populated
     // per-question in setQuestion().
     _contentRoot.innerHTML = `
@@ -46,8 +61,7 @@ export default class PracticeMaker {
           </li>
 
           <li class="nav-item">
-          <span id="editModeBadge" class="btn badge bg-warning text-dark d-none"
-             data-i18n="editModeBadge"></span>
+          <span id="editModeBadge" class="btn badge bg-warning text-dark d-none">${LABELS.editModeBadge}</span>
           </li>
 
           <li class="nav-item">
@@ -123,8 +137,8 @@ export default class PracticeMaker {
  <div id="notfound" class="row d-none">
     <div class="d-flex align-items-center justify-content-center">
        <div class="text-center">
-          <p class="fs-3" data-i18n="noQuestions"></p>
-          <a href="/" class="btn btn-primary" data-i18n="goBack"></a>
+          <p class="fs-3">${LABELS.noQuestions}</p>
+          <a href="/" class="btn btn-primary">${LABELS.goBack}</a>
        </div>
     </div>
  </div>
@@ -155,15 +169,13 @@ export default class PracticeMaker {
        id="checkBtn"
        title="Check Question"
     >
-       <i class="bi bi-check"></i> <span data-i18n="verifyBtn"></span>
+       <i class="bi bi-check"></i> <span>${LABELS.verifyBtn}</span>
     </button>
-    <button id="quizSubmitBtn" type="button" class="btn btn-danger d-none"
-       data-i18n="submitQuiz"></button>
+    <button id="quizSubmitBtn" type="button" class="btn btn-danger d-none">${LABELS.submitQuiz}</button>
 
  </div>
             `;
 
-    // Fill in all translatable text via the DOM API
     this._root = _contentRoot;
     this._applyLocale();
 
@@ -287,27 +299,16 @@ export default class PracticeMaker {
     // 1. Re-initialize QuestionLoader with the new locale/languageCode
     this.questionLoader = new QuestionLoader(this._loaderOptions());
 
-    // 2. Re-apply translated UI text (elements marked with data-i18n)
+    // 2. Locale hook (dummy for now; labels are hardcoded in English)
     this._applyLocale();
 
     this._resetUI();
     return this.loadQuestions();
   }
 
-  // Fills every element marked with data-i18n="<key>" using the current
-  // locale. Scoped to this instance's root so other page content is untouched.
-  _applyLocale() {
-    const locale = this._options.locale;
-
-    this._root.querySelectorAll('[data-i18n]').forEach((el) => {
-      el.textContent = t(locale, el.dataset.i18n);
-    });
-
-    // Optional: translated attributes such as tooltips
-    this._root.querySelectorAll('[data-i18n-title]').forEach((el) => {
-      el.title = t(locale, el.dataset.i18nTitle);
-    });
-  }
+  // Dummy: UI text is hardcoded in English, so locale changes are a no-op.
+  // Kept so a real translation layer can be plugged back in later.
+  _applyLocale() {}
 
   _resetUI() {
     const mode = this._options.mode;
@@ -429,7 +430,6 @@ export default class PracticeMaker {
 
     if (!hasQuestions) {
       if (mode !== 'EDIT') {
-        // The label comes from data-i18n="goBack"; only the target is set here.
         const link = document.querySelector('#notfound a.btn-primary');
         if (link) link.href = document.referrer || '/';
       }
@@ -644,9 +644,7 @@ export default class PracticeMaker {
     const answer = this.questionPane.getAnswer();
 
     if (!answer && !silentMode) {
-      this._options.error?.(
-        t(this._options.locale, 'pleaseAnswer')
-      );
+      this._options.error?.(LABELS.pleaseAnswer);
       return false;
     }
 
@@ -696,10 +694,9 @@ export default class PracticeMaker {
     const button = this.explainToggleBtn;
     if (!button) return;
 
-    button.firstElementChild.textContent = t(
-      this._options.locale,
-      correct ? 'correctAnswer' : 'wrongAnswer'
-    );
+    button.firstElementChild.textContent = correct
+      ? LABELS.correctAnswer
+      : LABELS.wrongAnswer;
 
     button.classList.remove('btn-success', 'btn-danger', 'd-none');
     button.classList.add(correct ? 'btn-success' : 'btn-danger');
@@ -808,20 +805,16 @@ export default class PracticeMaker {
     };
 
     const restoreFab = () => {
-      // Rebuilt with data-i18n markers; _applyLocale() fills in the text.
       fabPane.innerHTML = `
         <button type="button"
           class="btn btn-primary d-none"
           id="checkBtn">
-          <i class="bi bi-check"></i> <span data-i18n="verifyBtn"></span>
+          <i class="bi bi-check"></i> <span>${LABELS.verifyBtn}</span>
         </button>
         <button type="button"
           class="btn btn-danger d-none"
-          id="quizSubmitBtn"
-          data-i18n="submitQuiz"></button>
+          id="quizSubmitBtn">${LABELS.submitQuiz}</button>
       `;
-
-      this._applyLocale();
 
       this.checkBtn = document.getElementById('checkBtn');
 
@@ -935,8 +928,7 @@ export default class PracticeMaker {
 
     const heading = document.createElement('h4');
     heading.className = 'text-center mb-3';
-    heading.textContent =
-      `${t(this._options.locale, 'quizComplete')} ${correct} / ${total}`;
+    heading.textContent = `${LABELS.quizComplete} ${correct} / ${total}`;
 
     resultsDiv.appendChild(heading);
 
@@ -946,8 +938,7 @@ export default class PracticeMaker {
 
       const timeEl = document.createElement('p');
       timeEl.className = 'text-center text-muted small mb-2';
-      timeEl.textContent =
-        `${t(this._options.locale, 'timeUsed')} ${this._formatTime(used)}`;
+      timeEl.textContent = `${LABELS.timeUsed} ${this._formatTime(used)}`;
 
       resultsDiv.appendChild(timeEl);
     }
@@ -1001,8 +992,7 @@ export default class PracticeMaker {
       backBtn.className =
         'btn btn-outline-secondary btn-sm mb-2';
 
-      backBtn.textContent =
-        t(this._options.locale, 'backToResults');
+      backBtn.textContent = LABELS.backToResults;
 
       backBtn.addEventListener('click', () => {
         content.classList.add('d-none');
@@ -1033,15 +1023,14 @@ export default class PracticeMaker {
     const result = this.results[index];
 
     const label = result.correct
-      ? 'correctAnswer'
-      : result.answered ? 'wrongAnswer' : 'notAttempted';
+      ? LABELS.correctAnswer
+      : result.answered ? LABELS.wrongAnswer : LABELS.notAttempted;
 
     const color = result.correct
       ? 'btn-success'
       : result.answered ? 'btn-danger' : 'btn-secondary';
 
-    this.explainToggleBtn.firstElementChild.textContent =
-      t(this._options.locale, label);
+    this.explainToggleBtn.firstElementChild.textContent = label;
 
     this.explainToggleBtn.classList.remove(
       'btn-success',
