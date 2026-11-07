@@ -206,13 +206,14 @@ function transformMarkdown(filePath) {
   let questionRaw = processedContent.trim();
   let explanationText;
 
-  // Extract Markdown Explanation separated by '---'
-  const parts = questionRaw.split(/\n\s*---\s*\n/);
+  // `---` may be followed by a newline OR be the very end of the text
+  // (e.g. a trailing `---` with no explanation).
+  const parts = questionRaw.split(/\n\s*---\s*(?:\n|$)/);
 
   if (parts.length > 1) {
     questionRaw = parts[0].trim();
     // Join back any additional '---' in case explanation itself contains horizontal rules
-    explanationText = parts.slice(1).join("\n---\n").trim();
+    explanationText = parts.slice(1).join("\n---\n").trim() || undefined;
   }
 
   const processKatex = (text) => {
