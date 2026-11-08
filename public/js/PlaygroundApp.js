@@ -13,7 +13,10 @@ export default class PlaygroundApp {
             baseUrl: this.baseUrl,
             maxQ: null,
             complexity: null,
-            timer: null
+            timer: null,
+            error:(message) => {
+                this.showError(message);
+            }
         };
 
         this._qMap = null;
@@ -22,7 +25,7 @@ export default class PlaygroundApp {
     }
 
     /**
-     * Normalize a `repoUrl` option value (string, array, or nullish)
+     * Normalize a `categories` option value (string, array, or nullish)
      * into a clean array of paths.
      */
     _toPathArray(value) {
@@ -88,14 +91,14 @@ export default class PlaygroundApp {
                 ...(saved ? JSON.parse(saved) : {})
             };
 
-            // Normalize repoUrl to an array (back-compat with sessions
+            // Normalize categories to an array (back-compat with sessions
             // saved before multi-path support was added).
-            options.repoUrl = this._toPathArray(options.repoUrl);
+            options.categories = this._toPathArray(options.categories);
 
             return options;
         } catch (error) {
             console.warn('Unable to restore playground options:', error);
-            return { ...this.defaultOptions, repoUrl: [] };
+            return { ...this.defaultOptions, categories: [] };
         }
     }
 
@@ -127,10 +130,38 @@ export default class PlaygroundApp {
             o.complexity ?? '';
         document.getElementById('timerInput').value = o.timer ?? '';
 
-        document.getElementById('repoUrlInput').value = o.baseUrl ?? '';
+        document.getElementById('categoriesInput').value = o.baseUrl ?? '';
 
         this._renderPathPills();
     }
+
+    showError(message, heading = "Error!") {
+        const alertBox = document.getElementById('errorAlert');
+        const headingElem = document.getElementById('errorHeading');
+        const messageElem = document.getElementById('errorMessage');
+      
+        // Set text content
+        headingElem.textContent = heading;
+        messageElem.textContent = message;
+      
+        // Show the alert by removing d-none
+        alertBox.classList.remove('d-none');
+
+        setTimeout(this.hideError, 5000);
+      }
+
+      /**
+ * Hide the error alert.
+ */
+    hideError() {
+    const alertBox = document.getElementById('errorAlert');
+    alertBox.classList.add('d-none');
+  }
+      
+
+  
+  // Example usage:
+  // showError("Invalid credentials. Please check your username and password.", "Login Failed:");
 
     /**
      * Register UI event listeners.
@@ -179,7 +210,7 @@ export default class PlaygroundApp {
             const complexity =
                 document.getElementById('complexityCmb').value;
             const timer = document.getElementById('timerInput').value;
-            const baseUrl = document.getElementById('repoUrlInput').value;
+            const baseUrl = document.getElementById('categoriesInput').value;
             const baseUrlChanged = baseUrl !== this.options.baseUrl;
 
             await this._setOptions({
@@ -187,7 +218,7 @@ export default class PlaygroundApp {
                 // Paths selected under the previous base URL may not exist
                 // under the new one, so drop them and let _loadQuestionPaths
                 // pick a fresh default from the new source below.
-                ...(baseUrlChanged ? { repoUrl: [] } : {}),
+                ...(baseUrlChanged ? { categories: [] } : {}),
                 maxQ: maxQ ? Number(maxQ) : null,
                 complexity: complexity || null,
                 timer: timer ? Number(timer) : null
@@ -235,7 +266,7 @@ export default class PlaygroundApp {
     /**
      * Check whether a path exists in the loaded question map,
      * walking segment by segment (same pattern QuestionLoader uses
-     * server-side to resolve a repoUrl against q-map.json).
+     * server-side to resolve a categories against q-map.json).
      */
     _isValidPath(path) {
         if (!this._qMap || !path) return false;
@@ -278,14 +309,14 @@ export default class PlaygroundApp {
 
         qPathInput.classList.remove('is-invalid');
 
-        const current = this._toPathArray(this.options.repoUrl);
+        const current = this._toPathArray(this.options.categories);
 
         if (current.includes(path)) {
             qPathInput.value = '';
             return;
         }
 
-        await this._setOptions({ repoUrl: [...current, path] });
+        await this._setOptions({ categories: [...current, path] });
         qPathInput.value = '';
         this._renderPathPills();
     }
@@ -294,10 +325,10 @@ export default class PlaygroundApp {
      * Remove a path pill and reload from the remaining paths.
      */
     async _removePath(path) {
-        const remaining = this._toPathArray(this.options.repoUrl)
+        const remaining = this._toPathArray(this.options.categories)
             .filter(existing => existing !== path);
 
-        await this._setOptions({ repoUrl: remaining });
+        await this._setOptions({ categories: remaining });
         this._renderPathPills();
     }
 
@@ -311,7 +342,7 @@ export default class PlaygroundApp {
 
         container.replaceChildren();
 
-        this._toPathArray(this.options.repoUrl).forEach(path => {
+        this._toPathArray(this.options.categories).forEach(path => {
             const pill = document.createElement('span');
             pill.className =
                 'badge rounded-pill text-bg-secondary d-inline-flex align-items-center gap-1';
@@ -363,7 +394,7 @@ export default class PlaygroundApp {
 
             // Preserve the default single-repo auto-load for sessions
             // that don't have any paths selected yet.
-            if (this._toPathArray(this.options.repoUrl).length === 0 && paths[0]) {
+            if (this._toPathArray(this.options.categories).length === 0 && paths[0]) {
                 await this._addPath(paths[0]);
             }
         } catch (error) {

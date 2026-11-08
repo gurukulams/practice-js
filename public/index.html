@@ -67,8 +67,8 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body d-flex flex-column gap-3">
-            <label class="form-label fw-semibold small" for="repoUrlInput">Repository Url</label>
-            <input class="form-control form-control-sm" id="repoUrlInput"></div><div class="form-check mb-3">
+            <label class="form-label fw-semibold small" for="categoriesInput">Repository Url</label>
+            <input class="form-control form-control-sm" id="categoriesInput"></div><div class="form-check mb-3">
             <label class="form-label mb-0 text-nowrap small fw-semibold" for="complexityCmb" data-i18n="modeLabel">Complexity
             </label>
             <select id="complexityCmb" class="form-select form-select-sm" aria-label="Default select example"><option value="">Low</option><option value="M">Medium</option><option value="H">High</option></select></div><div class="form-check mb-3"><label class="form-label fw-semibold small" for="maxQInput">Max Questions <span class="text-muted fw-normal" id="quizMaxQHint"></span></label>
@@ -86,10 +86,20 @@
     </div>
 
     <!-- Alert area -->
-    <div id="alertArea" class="px-3 mt-2"></div>
+    <div id="alertArea" class="px-3 mt-2">
+
+      <div id="errorAlert" class="alert alert-danger alert-dismissible fade show d-none" role="alert">
+        <strong id="errorHeading">Error!</strong> <span id="errorMessage">Something went wrong.</span>
+        <!-- Removed data-bs-dismiss="alert" so the element isn't deleted from the DOM -->
+        <button type="button" class="btn-close" aria-label="Close" onclick="hideError()"></button>
+      </div>
+
+    </div>
 
     <!-- Main mount point -->
     <div id="practice-main" class="px-3 mt-2"></div>
+
+
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
 

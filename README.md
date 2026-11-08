@@ -43,7 +43,7 @@ const maker = new PracticeMaker(
     {
         mode: 'PRACTICE',
         baseUrl: 'https://www.example.com',
-        repoUrl: 'maths/algebra',
+        categories: 'maths/algebra',
         maxQ: 10,
         shuffle: true
     }
@@ -52,7 +52,7 @@ const maker = new PracticeMaker(
 await maker.ready;
 ```
 
-Questions are fetched from `baseUrl + '/data/' + repoUrl`. In the example above, that is `https://www.example.com/data/maths/algebra`.
+Questions are fetched from `baseUrl + '/data/' + categories`. In the example above, that is `https://www.example.com/data/maths/algebra`.
 
 ### HTML
 
@@ -67,7 +67,7 @@ Questions are fetched from `baseUrl + '/data/' + repoUrl`. In the example above,
         {
             mode: 'PRACTICE',
             baseUrl: 'https://www.example.com',
-            repoUrl: 'maths/algebra',
+            categories: 'maths/algebra',
             maxQ: 10
         }
     );
@@ -78,19 +78,19 @@ If the questions are served from the same origin as your page, omit `baseUrl`:
 
 ```javascript
 const maker = new PracticeMaker(container, {
-    repoUrl: 'maths/algebra'   // fetched from /data/maths/algebra
+    categories: 'maths/algebra'   // fetched from /data/maths/algebra
 });
 ```
 
 ## Question Repository
 
-`baseUrl` and `repoUrl` together point to a folder inside the `data` directory of your site.
+`baseUrl` and `categories` together point to a folder inside the `data` directory of your site.
 
 | Part | Example | Description |
 |---|---|---|
 | `baseUrl` | `https://www.example.com` | Site origin. Defaults to `''` (same origin, resolved as `/data/...`). A trailing slash is ignored. |
 | `/data/` | `/data/` | Fixed data root. Added automatically. |
-| `repoUrl` | `maths/algebra` | Path of the question folder relative to the data root. Leading and trailing slashes are ignored. |
+| `categories` | `maths/algebra` | Path of the question folder relative to the data root. Leading and trailing slashes are ignored. |
 
 ### Expected folder layout
 
@@ -109,7 +109,7 @@ data/
 - `data/q-map.json` describes the folder tree, for example `{ "maths": { "algebra": { "linear-equations": {} } } }`.
 - Loading `maths/algebra` also loads every folder beneath it (here, `linear-equations`).
 - A folder without a `questions.json` is skipped.
-- If `repoUrl` is not found in `q-map.json`, no questions are loaded.
+- If `categories` is not found in `q-map.json`, no questions are loaded.
 - If `data/q-map.json` itself cannot be found, loading fails and the `error` callback is called.
 
 ### Localized questions
@@ -124,8 +124,8 @@ All configuration options are managed internally through `this._options`.
 |---|---|---|---|
 | `mode` | String | `PRACTICE` | Operating mode: `PRACTICE`, `QUIZ`, or `EDIT`. |
 | `baseUrl` | String | `''` | Site origin that hosts the `data` folder, for example `https://www.example.com`. |
-| `repoUrl` | String | `undefined` | Question folder path relative to `<baseUrl>/data/`, for example `maths/algebra`. |
-| `questions` | Array | `undefined` | Questions supplied directly as an array. When set, nothing is fetched from `baseUrl` / `repoUrl`. |
+| `categories` | String | `undefined` | Question folder path relative to `<baseUrl>/data/`, for example `maths/algebra`. |
+| `questions` | Array | `undefined` | Questions supplied directly as an array. When set, nothing is fetched from `baseUrl` / `categories`. |
 | `maxQ` | Number | `null` | Maximum number of questions to load. |
 | `complexity` | String | `null` | Filter questions by complexity. See [Filtering Questions](#filtering-questions). |
 | `timer` | Number | `null` | Quiz duration in seconds. |
@@ -139,7 +139,7 @@ All configuration options are managed internally through `this._options`.
 
 **Aliases:** `maxQuestions` is accepted as an alternative to `maxQ`, and `shuffle` as an alternative to `shuffleQuestions`.
 
-**Migrating from an older version:** `repoUrl` used to be a full path such as `/data/maths/algebra`. It is now relative to `<baseUrl>/data/`, so use `maths/algebra` instead.
+**Migrating from an older version:** `categories` used to be a full path such as `/data/maths/algebra`. It is now relative to `<baseUrl>/data/`, so use `maths/algebra` instead.
 
 ## Operating Modes
 
@@ -190,7 +190,7 @@ PracticeMaker supports updating configuration at runtime through `setOptions()`.
 ```javascript
 await maker.setOptions({
     mode: 'QUIZ',
-    repoUrl: 'maths/geometry',
+    categories: 'maths/geometry',
     maxQ: 15,
     timer: 600,
     complexity: 'M'
@@ -204,7 +204,7 @@ await maker.setOptions({
 ```javascript
 await maker.setOptions({
     baseUrl: 'https://www.example.com',
-    repoUrl: 'science/physics'
+    categories: 'science/physics'
 });
 ```
 
@@ -213,7 +213,7 @@ await maker.setOptions({
 ```javascript
 maker.mode = 'PRACTICE';
 maker.baseUrl = 'https://www.example.com';
-maker.repoUrl = 'maths/algebra';
+maker.categories = 'maths/algebra';
 maker.maxQ = 10;
 maker.timer = 300;
 maker.complexity = 'M';
@@ -222,7 +222,7 @@ maker.locale = 'ta';
 
 Individual property setters delegate to `setOptions()`, and each one reloads questions.
 
-**Recommendation:** Use `await maker.setOptions({...})` when updating multiple options (for example `baseUrl` and `repoUrl` together) to avoid repeated question loading.
+**Recommendation:** Use `await maker.setOptions({...})` when updating multiple options (for example `baseUrl` and `categories` together) to avoid repeated question loading.
 
 ## Public API
 
@@ -243,7 +243,7 @@ Individual property setters delegate to `setOptions()`, and each one reloads que
 
 ## Loading Questions Programmatically
 
-Questions can also be provided directly without `baseUrl` / `repoUrl`.
+Questions can also be provided directly without `baseUrl` / `categories`.
 
 ```javascript
 const maker = new PracticeMaker(
@@ -307,7 +307,7 @@ const maker = new PracticeMaker(
     document.getElementById('practice-container'),
     {
         baseUrl: 'https://www.example.com',
-        repoUrl: 'maths/algebra',
+        categories: 'maths/algebra',
         error: (message) => {
             console.error(message);
         }
@@ -315,7 +315,7 @@ const maker = new PracticeMaker(
 );
 ```
 
-Errors are reported for failed requests (non-404 HTTP errors) and when `data/q-map.json` is missing. A `repoUrl` that is not present in `q-map.json` is not an error; it simply returns no questions.
+Errors are reported for failed requests (non-404 HTTP errors) and when `data/q-map.json` is missing. A `categories` that is not present in `q-map.json` is not an error; it simply returns no questions.
 
 ## Cleanup
 

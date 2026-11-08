@@ -9,13 +9,13 @@ const remoteQuestionsCache = new Map();
 /**
  * Questions Loader is responsible to load, filter and shuffle questions from repository.
  *
- * Questions are fetched from: baseUrl + "/data/" + repoUrl
+ * Questions are fetched from: baseUrl + "/data/" + categories
  *
  * Sample Usage
  * const qL = new QuestionLoader({ baseUrl: "https://www.example.com" });
- * qL.repoUrl = "maths/algebra";
+ * qL.categories = "maths/algebra";
  * // Multiple repos can be loaded and merged together:
- * qL.repoUrl = ["maths/algebra", "science/physics"];
+ * qL.categories = ["maths/algebra", "science/physics"];
  * qL.languageCode = "ta";
  * qL.maxQuestions = 5;
  * qL.shuffleQuestions = true;
@@ -28,7 +28,7 @@ const remoteQuestionsCache = new Map();
 export default class QuestionLoader {
   constructor(options = {}) {
     this._baseUrl = options.baseUrl || ""; // e.g. "https://www.example.com"
-    this._repoUrl = options.repoUrl || null; // e.g. "maths/algebra"
+    this._categories = options.categories || null; // e.g. "maths/algebra"
     this._languageCode =
       options.languageCode === "en" ? "" : options.languageCode || null;
     this._maxQuestions = options.maxQuestions ?? options.maxQ ?? null;
@@ -64,12 +64,12 @@ export default class QuestionLoader {
     this._baseUrl = value || "";
   }
 
-  get repoUrl() {
-    return this._repoUrl;
+  get categories() {
+    return this._categories;
   }
 
-  set repoUrl(value) {
-    this._repoUrl = value;
+  set categories(value) {
+    this._categories = value;
   }
 
   get languageCode() {
@@ -120,11 +120,11 @@ export default class QuestionLoader {
   }
 
   /**
-   * Normalize `repoUrl` (a single path string or an array of path strings)
+   * Normalize `categories` (a single path string or an array of path strings)
    * into a clean array of trimmed, non-empty paths.
    */
   _normalizeRepoUrls() {
-    const raw = Array.isArray(this._repoUrl) ? this._repoUrl : [this._repoUrl];
+    const raw = Array.isArray(this._categories) ? this._categories : [this._categories];
     return raw
       .filter((path) => typeof path === "string" && path.trim().length > 0)
       .map((path) => path.replace(/^\/+|\/+$/g, ""));
@@ -199,7 +199,7 @@ export default class QuestionLoader {
     /**
      * Fetch the map from the root data folder.
      *
-     * Example: repoUrl = "social-science/history"
+     * Example: categories = "social-science/history"
      *
      * q-map.json contains:
      * {

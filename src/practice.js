@@ -9,7 +9,7 @@ import {
 
 export { loadUserQuestions, saveUserQuestion, deleteUserQuestion };
 
-// `repoUrl` can be a single path string or an array of paths; an empty
+// `categories` can be a single path string or an array of paths; an empty
 // array is truthy in JS, so callers must use this instead of `Boolean(value)`.
 const hasRepoUrl = (value) =>
   Array.isArray(value) ? value.length > 0 : Boolean(value);
@@ -218,7 +218,7 @@ export default class PracticeMaker {
 
     this._resetUI();
     this.ready =
-      hasRepoUrl(this._options.repoUrl) ||
+      hasRepoUrl(this._options.categories) ||
       Array.isArray(this._options.questions) ||
       this._options.includeUserQuestions
       ? this.loadQuestions()
@@ -228,7 +228,7 @@ export default class PracticeMaker {
   _normalizeOptions(options = {}) {
     const merged = { ...this._options, ...options };
     const mode = merged.mode ?? 'PRACTICE';
-    const repoUrl = merged.repoUrl;
+    const categories = merged.categories;
     const modeChanged = Object.hasOwn(options, 'mode');
 
     return {
@@ -242,8 +242,8 @@ export default class PracticeMaker {
       shuffleQuestions: merged.shuffleQuestions ?? merged.shuffle ?? true,
       includeUserQuestions: options.includeUserQuestions ??
         (modeChanged
-          ? Boolean(hasRepoUrl(repoUrl) || mode === 'EDIT')
-          : merged.includeUserQuestions ?? Boolean(hasRepoUrl(repoUrl) || mode === 'EDIT')),
+          ? Boolean(hasRepoUrl(categories) || mode === 'EDIT')
+          : merged.includeUserQuestions ?? Boolean(hasRepoUrl(categories) || mode === 'EDIT')),
       source: options.source ??
         (modeChanged
           ? (mode === 'EDIT' ? 'user' : 'all')
@@ -255,7 +255,7 @@ export default class PracticeMaker {
     const o = this._options;
     return {
       baseUrl: o.baseUrl,
-      repoUrl: o.repoUrl,
+      categories: o.categories,
       languageCode: o.languageCode ?? o.locale,
       questions: o.questions,
       includeUserQuestions: o.includeUserQuestions,
@@ -287,8 +287,8 @@ export default class PracticeMaker {
   get baseUrl() { return this._options.baseUrl; }
   set baseUrl(value) { void this.setOptions({ baseUrl: value }); }
 
-  get repoUrl() { return this._options.repoUrl; }
-  set repoUrl(value) { void this.setOptions({ repoUrl: value }); }
+  get categories() { return this._options.categories; }
+  set categories(value) { void this.setOptions({ categories: value }); }
 
   async setOptions(changes = {}) {
     this._options = this._normalizeOptions(changes);
