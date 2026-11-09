@@ -244,13 +244,16 @@ function transformMarkdown(filePath) {
     question.complexity = data.complexity;
   }
 
-  const answers = Array.isArray(data.answers) ? data.answers : [];
+  const answers = (Array.isArray(data.answers) ? data.answers : []).map((a) =>
+          String(a).trim()
+  );
   const initialChoices = Array.isArray(data.choices) ? data.choices : [];
   const combinedList = [...initialChoices, ...answers];
 
   const processChoices = (choiceList) => {
     return choiceList.map((item) => {
-      let rawLabel = typeof item === "string" ? item.trim() : String(item);
+      const original = typeof item === "string" ? item.trim() : String(item);
+      let rawLabel = original;
       let imageUrl = null;
 
       if (rawLabel.startsWith('"') && rawLabel.endsWith('"')) {
@@ -275,7 +278,7 @@ function transformMarkdown(filePath) {
         choice.image = imageUrl;
       }
 
-      if (answers.includes(rawLabel)) {
+      if (answers.includes(original) || answers.includes(rawLabel)) {
         choice.answer = true;
       }
 
