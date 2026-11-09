@@ -342,6 +342,12 @@ $env PUBLIC_FOLDER=<<DIR>>
 npm run watch:questions
 ```
 
+## Release
+
+```bash
+npm version minor      git push --follow-tags
+```
+
 ## License
 
 **BSD License**
