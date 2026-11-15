@@ -4,6 +4,7 @@ import zlib from 'zlib';
 import { PDFDocument, PDFName, PDFStream } from 'pdf-lib';
 
 // node PDFSplitter.js <<PATH>> 7 42 91 167 209 245 275 307 351
+// node PDFSplitter.js <<PATH>> 7 10 25 26 --disconnected
 async function splitPDF() {
     const args = process.argv.slice(2);
 
