@@ -140,7 +140,28 @@ const schema = {
 
 function transformMarkdown(filePath) {
   const raw = fs.readFileSync(filePath, "utf8");
-  const { data, content } = matter(raw);
+
+  let data, content;
+  try {
+    ({ data, content } = matter(raw));
+  } catch (err) {
+    console.error(`❌ Invalid YAML front matter in file: ${filePath}`);
+  
+    if (err.mark) {
+      // js-yaml line numbers are relative to the front matter block,
+      // which starts after the opening '---', so add 1 for the file line.
+      console.error(
+        `   Line ${err.mark.line + 1}, column ${err.mark.column + 1}: ${err.reason || err.message}`
+      );
+      if (err.mark.snippet) {
+        console.error(err.mark.snippet);
+      }
+    } else {
+      console.error(`   ${err.message}`);
+    }
+  
+    process.exit(1);
+  }
 
   const fileDir = path.dirname(filePath);
 
