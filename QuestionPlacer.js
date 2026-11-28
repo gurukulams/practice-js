@@ -57,7 +57,7 @@ function discoverLanguages() {
     en: absoluteEnglishFile,
   };
 
-  const prefix = `${sourceTag}-`;
+  const prefix = `${sourceTag}_`;
 
   for (const file of files) {
     if (!file.startsWith(prefix) || !file.endsWith(".md")) {
